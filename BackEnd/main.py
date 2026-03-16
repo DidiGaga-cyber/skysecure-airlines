@@ -1,25 +1,28 @@
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-from database import SessionLocal, engine, Base
+from fastapi import FastAPI, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
+from database import engine
 
-# Создаем таблицы в БД (хотя моделей пока нет, это создаст пустую базу)
-Base.metadata.create_all(bind=engine)
+app = FastAPI(title="SkySecure Airlines API")
 
-app = FastAPI(
-    title="SkySecure Airlines API",
-    description="API for flight booking and management",
-    version="0.1.0"
+# Настройка CORS, чтобы Vue.js (Axios) мог отправлять запросы
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # В продакшене ограничим до конкретного домена
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Зависимость для получения сессии БД
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Создаем роутер с обязательным префиксом /api
+api_router = APIRouter(prefix="/api")
 
-# Простой эндпоинт для проверки статуса сервера
-@app.get("/health")
-def health_check(db: Session = Depends(get_db)):
-    return {"status": "ok", "message": "API and Database connection are working!"}
+@api_router.get("/health")
+def health_check():
+    return {
+        "status": "ok", 
+        "message": "SkySecure Backend is running on PostgreSQL",
+        "database": "connected"
+    }
+
+# Подключаем роутер к основному приложению
+app.include_router(api_router)
