@@ -1,8 +1,11 @@
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine
+from auth import router as auth_router
 
 app = FastAPI(title="SkySecure Airlines API")
+
+app.include_router(auth_router)
 
 # Настройка CORS, чтобы Vue.js (Axios) мог отправлять запросы
 app.add_middleware(
