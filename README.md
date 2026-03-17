@@ -1,7 +1,7 @@
-# SkySecure Airlines ✈️
+# SkySecure Airlines 
 System zakupu i rezerwacji biletów lotniczych dla linii pasażerskich "SkySecure Airlines".
 
-## 🚀 Status projektu: Sprint 2 (Zakończony)
+## Status projektu: Sprint 2 (Zakończony)
 
 W tym sprincie przenieśliśmy architekturę na poziom produkcyjny, wprowadzając konteneryzację, profesjonalną bazę danych oraz system bezpieczeństwa.
 
@@ -33,7 +33,7 @@ W tym sprincie przenieśliśmy architekturę na poziom produkcyjny, wprowadzają
 
 ---
 
-## 🏃 Jak uruchomić projekt (Docker)
+## Jak uruchomić projekt (Docker)
 
 To najprostszy sposób. Nie musisz niczego instalować lokalnie (oprócz Dockera).
 
