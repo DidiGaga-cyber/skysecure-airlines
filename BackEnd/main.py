@@ -1,31 +1,31 @@
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine
+import models
 from auth import router as auth_router
 
-app = FastAPI(title="SkySecure Airlines API")
+# Сначала БД
+models.Base.metadata.create_all(bind=engine)
 
-app.include_router(auth_router)
+# Создаем приложение (добавляем root_path, чтобы Swagger не терялся за Nginx)
+app = FastAPI(title="SkySecure Airlines API", root_path="/api")
 
-# Настройка CORS, чтобы Vue.js (Axios) мог отправлять запросы
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # В продакшене ограничим до конкретного домена
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Создаем роутер с обязательным префиксом /api
-api_router = APIRouter(prefix="/api")
+# Подключаем авторизацию ОДИН РАЗ (префикс уже есть внутри auth.py)
+app.include_router(auth_router)
 
-@api_router.get("/health")
+# Базовый роутер для проверок
+api_router = APIRouter()
+
+@api_router.get("/health", tags=["system"])
 def health_check():
-    return {
-        "status": "ok", 
-        "message": "SkySecure Backend is running on PostgreSQL",
-        "database": "connected"
-    }
+    return {"status": "ok", "database": "connected"}
 
-# Подключаем роутер к основному приложению
 app.include_router(api_router)
