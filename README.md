@@ -1,35 +1,43 @@
-# skysecure-airlines
+# SkySecure Airlines ✈️
 System zakupu i rezerwacji biletów lotniczych dla linii pasażerskich "SkySecure Airlines".
 
+## 🚀 Status projektu: Sprint 2 (Zakończony)
 
-# SkySecure Airlines - Backend
+W tym sprincie przenieśliśmy architekturę na poziom produkcyjny, wprowadzając konteneryzację, profesjonalną bazę danych oraz system bezpieczeństwa.
 
-System rezerwacji i zakupu biletów lotniczych. Ta część repozytorium zawiera logikę serwerową (API) oraz konfigurację bazy danych.
+### Co zostało zrobione (Sprint 2):
 
-## Co zostało zrobione (Sprint 1):
+#### 1. Konteneryzacja i Infrastruktura (DevOps)
+* **Docker & Docker Compose**: Cały system został podzielony na 3 współpracujące usługi: `backend`, `db` (PostgreSQL) oraz `proxy` (Nginx).
+* **Nginx Reverse Proxy**: Skonfigurowano serwer proxy, który obsługuje ruch na porcie 80 i przekierowuje zapytania `/api/` do backendu.
+* **PostgreSQL**: Migracja z SQLite na pełnoprawną bazę danych PostgreSQL 15.
 
-### 1. Konfiguracja projektu (Setup)
-* Inicjalizacja środowiska wirtualnego (`venv`).
-* Konfiguracja pliku `.gitignore` w celu wykluczenia plików tymczasowych i bazy danych z repozytorium.
-* Przygotowanie pliku `requirements.txt` z listą niezbędnych bibliotek.
+#### 2. Bezpieczeństwo i Autentykacja
+* **Rejestracja i Logowanie**: Implementacja pełnego przepływu użytkownika (Register/Login).
+* **Hashing haseł**: Wykorzystanie nowoczesnego algorytmu **Argon2** do bezpiecznego przechowywania haseł w bazie.
+* **JWT (JSON Web Tokens)**: System generowania tokenów dostępu dla zalogowanych użytkowników.
 
-### 2. Wybór i instalacja technologii
-* **FastAPI**: Wykorzystany jako nowoczesny i wydajny framework do budowy API.
-* **SQLAlchemy**: Konfiguracja ORM do komunikacji z bazą danych.
-* **Uvicorn**: Serwer ASGI do uruchamiania aplikacji.
+#### 3. Udoskonalenia Backend (FastAPI)
+* **Refaktoryzacja main.py**: Poprawa kolejności inicjalizacji aplikacji i routerów.
+* **Pydantic Schemas**: Stworzenie modeli walidacji danych dla użytkowników i tokenów.
+* **Healthcheck 2.0**: Endpoint weryfikujący połączenie z bazą PostgreSQL przez Nginx.
 
-### 3. Architektura bazy danych
-* Stworzenie modułu `database.py`.
-* Konfiguracja połączenia z bazą danych (SQLite w fazie deweloperskiej).
-* Inicjalizacja `SessionLocal` oraz klasy bazowej `Base` dla przyszłych modeli.
+---
 
-### 4. Implementacja Endpointów
-* Stworzenie głównej aplikacji FastAPI w pliku `main.py`.
-* Dodanie endpointu testowego **Healthcheck** (`/health`), który pozwala zweryfikować poprawność działania serwera oraz połączenia z bazą danych.
+## 🛠 Technologia
+* **Framework**: FastAPI
+* **Baza danych**: PostgreSQL 15 + SQLAlchemy (ORM)
+* **Serwer Proxy**: Nginx
+* **Kontenery**: Docker + Docker Compose
+* **Bezpieczeństwo**: Passlib (Argon2), PyJWT
 
-## Jak uruchomić projekt lokalnie:
+---
 
-1. Aktywuj środowisko wirtualne: `venv\Scripts\activate`
-2. Zainstaluj biblioteki: `pip install -r requirements.txt`
-3. Uruchom serwer: `python -m uvicorn main:app --reload`
-4. Dokumentacja Swagger UI dostępna pod adresem: `http://127.0.0.1:8000/docs`
+## 🏃 Jak uruchomić projekt (Docker)
+
+To najprostszy sposób. Nie musisz niczego instalować lokalnie (oprócz Dockera).
+
+1. **Sklonuj repozytorium:**
+   ```bash
+   git clone [https://github.com/DidiGaga-cyber/skysecure-airlines.git](https://github.com/DidiGaga-cyber/skysecure-airlines.git)
+   cd skysecure-airlines
