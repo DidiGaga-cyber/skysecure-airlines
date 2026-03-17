@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkySecure Airlines - Sprint 2</title>
+    <!-- Setup Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 & Vue Router 4 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+    <style>
+        .page-enter-active, .page-leave-active { transition: all 0.3s ease; }
+        .page-enter-from { opacity: 0; transform: translateY(10px); }
+        .page-leave-to { opacity: 0; transform: translateY(-10px); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="app">
+        <!-- Шапка сайта -->
+        <header class="bg-white shadow-sm p-3 border-b border-slate-200 sticky top-0 z-50">
+            <div class="container mx-auto flex justify-between items-center">
+                
+                <!-- Секция Логотипа -->
+                <div class="flex items-center space-x-3 cursor-pointer" @click="$router.push('/')">
+                    <!-- ЗАМЕНИТЕ logo.jpg НА ВАШ ФАЙЛ -->
+                    <img src="logo.jpg" alt="SkySecure Logo" class="h-12 w-auto object-contain">
+                    <div class="flex flex-col">
+                        <span class="text-xl font-black tracking-tight leading-none text-slate-800 uppercase">SkySecure</span>
+                        <span class="text-xs font-bold text-blue-600 tracking-widest uppercase">Airlines</span>
+                    </div>
+                </div>
+
+                <nav class="space-x-6 flex items-center">
+                    <router-link to="/" class="hidden md:block hover:text-blue-600 font-semibold transition-colors">Strona Główna</router-link>
+                    
+                    <!-- Состояние: НЕ авторизован -->
+                    <router-link v-if="!isLoggedIn" to="/login" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 font-bold">
+                        Zaloguj się
+                    </router-link>
+                    
+                    <!-- Состояние: АВТОРИЗОВАН -->
+                    <div v-else class="flex items-center space-x-4">
+                        <span class="text-sm font-semibold text-slate-700">{{ userEmail }}</span>
+                        <button @click="logout" class="text-slate-400 hover:text-red-500 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <main class="container mx-auto mt-8 p-4">
+            <router-view v-slot="{ Component }">
+                <transition name="page" mode="out-in">
+                    <component :is="Component" />
+                </transition>
+            </router-view>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+        const { createRouter, createWebHashHistory } = VueRouter;
+
+        // Логика хранения JWT
+        const authToken = ref(localStorage.getItem('skysecure_token') || null);
+        const userEmail = ref(localStorage.getItem('skysecure_user_email') || '');
+
+        const setSession = (token, email) => {
+            authToken.value = token;
+            userEmail.value = email;
+            localStorage.setItem('skysecure_token', token);
+            localStorage.setItem('skysecure_user_email', email);
+        };
+
+        const clearSession = () => {
+            authToken.value = null;
+            userEmail.value = '';
+            localStorage.removeItem('skysecure_token');
+            localStorage.removeItem('skysecure_user_email');
+        };
+
+        // Страницы
+        const Home = { 
+            setup() {
+                const isLoggedIn = computed(() => !!authToken.value);
+                return { isLoggedIn, userEmail };
+            },
+            template: `
+                <div class="max-w-4xl mx-auto text-center py-16">
+                    <h1 class="text-5xl font-black mb-6 text-slate-800 tracking-tight">Odkryj świat z <span class="text-blue-600">SkySecure</span></h1>
+                    <p class="text-xl text-slate-500 mb-10">System rezerwacji biletów lotniczych (Sprint 2).</p>
+                    
+                    <div v-if="isLoggedIn" class="bg-blue-50 text-blue-700 p-6 rounded-3xl border border-blue-100 inline-block">
+                        Zalogowano jako: <strong>{{ userEmail }}</strong>
+                    </div>
+                </div>
+            ` 
+        };
+
+        const Login = { 
+            setup() {
+                const isRegisterMode = ref(false);
+                const form = ref({ email: '', password: '', imie: '', nazwisko: '' });
+
+                const handleAuth = () => {
+                    // Имитация записи JWT токена
+                    setSession("fake_jwt_token", form.value.email);
+                    router.push('/');
+                };
+
+                return { isRegisterMode, form, handleAuth };
+            },
+            template: `
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
+                        <!-- МЕСТО ДЛЯ ВАШЕГО ЛОГОТИПА В ФОРМЕ -->
+                        <div class="flex justify-center mb-6">
+                            <img src="logo.jpg" alt="Logo" class="h-16 w-auto object-contain">
+                        </div>
+
+                        <div class="flex p-1.5 bg-slate-100 rounded-2xl mb-8">
+                            <button @click="isRegisterMode = false" :class="!isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-50'" class="flex-1 py-3 rounded-xl font-bold transition-all">Login</button>
+                            <button @click="isRegisterMode = true" :class="isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-50'" class="flex-1 py-3 rounded-xl font-bold transition-all">Rejestracja</button>
+                        </div>
+
+                        <form @submit.prevent="handleAuth" class="space-y-4">
+                            <div v-if="isRegisterMode" class="grid grid-cols-2 gap-4">
+                                <input v-model="form.imie" type="text" placeholder="Imię" class="p-4 bg-slate-50 border rounded-2xl outline-none" required>
+                                <input v-model="form.nazwisko" type="text" placeholder="Nazwisko" class="p-4 bg-slate-50 border rounded-2xl outline-none" required>
+                            </div>
+                            <input v-model="form.email" type="email" placeholder="Email" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none" required>
+                            <input v-model="form.password" type="password" placeholder="Hasło" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none" required>
+                            <button type="submit" class="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl hover:bg-slate-800 transition-all">
+                                {{ isRegisterMode ? 'Zarejestruj się' : 'Zaloguj się' }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            ` 
+        };
+
+        const routes = [
+            { path: '/', component: Home },
+            { path: '/login', component: Login }
+        ];
+
+        const router = createRouter({
+            history: createWebHashHistory(),
+            routes,
+        });
+
+        const app = createApp({
+            setup() {
+                const isLoggedIn = computed(() => !!authToken.value);
+                const logout = () => { clearSession(); router.push('/login'); };
+                return { isLoggedIn, userEmail, logout };
+            }
+        });
+
+        app.use(router);
+        app.mount('#app');
+    </script>
+</body>
+</html>
