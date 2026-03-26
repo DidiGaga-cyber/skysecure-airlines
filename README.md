@@ -1,43 +1,71 @@
 # SkySecure Airlines 
 System zakupu i rezerwacji biletów lotniczych dla linii pasażerskich "SkySecure Airlines".
 
-## Status projektu: Sprint 2 (Zakończony)
+## Status projektu: Sprint 3 (W trakcie)
+W tym sprincie skupiamy sie na integracji systemow oraz rozbudowie logiki biznesowej dla lotow i lotnisk.
 
-W tym sprincie przenieśliśmy architekturę na poziom produkcyjny, wprowadzając konteneryzację, profesjonalną bazę danych oraz system bezpieczeństwa.
+### Co zostalo zrobione (Sprint 3):
+#### 1. Integracja Frontend & Backend
+* **Axios**: Wdrozenie biblioteki po stronie klienta (Vue 3).
+* **Pelny cykl autoryzacji**: Rejestracja i logowanie bezposrednio z poziomu interfejsu (HTML/JS) do bazy danych PostgreSQL poprzez proxy Nginx.
+* **Zarzadzanie sesja**: Bezpieczne przechowywanie prawdziwych tokenow JWT w localStorage.
+* **Naprawa routingu**: Optymalizacja prefiksow API (/auth) dla bezproblemowej wspolpracy FastAPI z Nginx.
 
-### Co zostało zrobione (Sprint 2):
+#### 2. Rozbudowa Bazy Danych (DevOps & DBA)
+* **Migracje i Seeding**: Podzial inicjalizacji bazy na profesjonalne skrypty: 01_schema.sql (struktura) i 02_seed.sql (dane testowe).
+* **Nowe Encje**: Dodanie relacyjnych tabel Lotniska (Slownik lotnisk IATA) oraz Loty (Polaczenia lotnicze).
+* **Dane Testowe**: Automatyczne tworzenie konta administratora, testowego pasazera oraz przykladowych tras lotniczych (m.in. WAW-JFK, LUZ-LHR).
 
-#### 1. Konteneryzacja i Infrastruktura (DevOps)
-* **Docker & Docker Compose**: Cały system został podzielony na 3 współpracujące usługi: `backend`, `db` (PostgreSQL) oraz `proxy` (Nginx).
-* **Nginx Reverse Proxy**: Skonfigurowano serwer proxy, który obsługuje ruch na porcie 80 i przekierowuje zapytania `/api/` do backendu.
-* **PostgreSQL**: Migracja z SQLite na pełnoprawną bazę danych PostgreSQL 15.
-
-#### 2. Bezpieczeństwo i Autentykacja
-* **Rejestracja i Logowanie**: Implementacja pełnego przepływu użytkownika (Register/Login).
-* **Hashing haseł**: Wykorzystanie nowoczesnego algorytmu **Argon2** do bezpiecznego przechowywania haseł w bazie.
-* **JWT (JSON Web Tokens)**: System generowania tokenów dostępu dla zalogowanych użytkowników.
-
-#### 3. Udoskonalenia Backend (FastAPI)
-* **Refaktoryzacja main.py**: Poprawa kolejności inicjalizacji aplikacji i routerów.
-* **Pydantic Schemas**: Stworzenie modeli walidacji danych dla użytkowników i tokenów.
-* **Healthcheck 2.0**: Endpoint weryfikujący połączenie z bazą PostgreSQL przez Nginx.
+### Co zostalo zrobione (Sprint 2):
+* Konteneryzacja (Docker, Docker Compose).
+* Nginx Reverse Proxy (port 80 -> backend:8000).
+* Migracja na PostgreSQL 15.
+* Hashing hasel Argon2 i system JWT.
 
 ---
 
-## 🛠 Technologia
-* **Framework**: FastAPI
+## Technologia
+* **Frontend**: Vue 3, Tailwind CSS, Axios
+* **Backend**: FastAPI, PyJWT, Passlib (Argon2)
 * **Baza danych**: PostgreSQL 15 + SQLAlchemy (ORM)
-* **Serwer Proxy**: Nginx
-* **Kontenery**: Docker + Docker Compose
-* **Bezpieczeństwo**: Passlib (Argon2), PyJWT
+* **Infrastruktura**: Nginx, Docker + Docker Compose
 
 ---
 
-## Jak uruchomić projekt (Docker)
+## Jak uruchomic projekt krok po kroku
 
-To najprostszy sposób. Nie musisz niczego instalować lokalnie (oprócz Dockera).
+System sklada sie z infrastruktury backendowej (Docker) oraz klienta frontendowego (przegladarka).
 
-1. **Sklonuj repozytorium:**
-   ```bash
-   git clone [https://github.com/DidiGaga-cyber/skysecure-airlines.git](https://github.com/DidiGaga-cyber/skysecure-airlines.git)
-   cd skysecure-airlines
+### Krok 1: Pobranie kodu
+```bash
+git clone [https://github.com/DidiGaga-cyber/skysecure-airlines.git](https://github.com/DidiGaga-cyber/skysecure-airlines.git)
+cd skysecure-airlines
+```
+
+### Krok 2: Uruchomienie infrastruktury (Baza + Serwery)
+Upewnij sie, ze Docker jest wlaczony, a nastepnie w terminalu wykonaj:
+```bash
+docker-compose down -v
+docker-compose up -d --build
+```
+(Flaga -v jest wymagana do wyczyszczenia starych wolumenow i zaladowania nowych danych testowych z plikow .sql).
+
+### Krok 3: Weryfikacja API
+Poczekaj 10-15 sekund na inicjalizacje bazy, a nastepnie otworz:
+http://localhost/api/docs
+
+### Krok 4: Uruchomienie aplikacji klienckiej
+Otworz menedzer plikow, wejdz do folderu FrontEnd i kliknij dwukrotnie plik main.html (otworzy sie w przegladarce).
+
+### Krok 5: Testowanie logowania
+Mozesz zarejestrowac nowego uzytkownika przez interfejs lub uzyc gotowego konta z bazy:
+* Email: admin@skysecure.pl lub test@skysecure.pl
+* Haslo: SuperSecretPassword123
+
+---
+
+## Struktura Bazy Danych
+System operuje obecnie na 3 polaczonych relacyjnie tabelach:
+1. **Uzytkownicy**: Dane osobowe, haslo (Argon2), rola.
+2. **Lotniska**: kod_iata (np. WAW, LUZ), nazwa, miasto, kraj.
+3. **Loty**: numer_lotu, klucze obce do lotnisk (odlot/przylot), czasy, cena, liczba_miejsc.
