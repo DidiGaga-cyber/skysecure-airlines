@@ -9,8 +9,6 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
-
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="app" v-cloak>
@@ -57,7 +55,7 @@
         const { createApp, ref, computed, reactive } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
-        const API_URL = 'http://localhost/api'; 
+        const API_URL = 'http://127.0.0.1/api'; 
 
         // -- LOGIKA PRZECHOWYWANIA SESJI --
         const authToken = ref(localStorage.getItem('skysecure_token') || null);
@@ -161,10 +159,19 @@
                 const handleAuth = async () => {
                     if (isRegisterMode.value) {
                         try {
-                            await axios.post(`${API_URL}/auth/register`, form.value);
-                            alert("Rejestracja udana!");
+                            // ВОТ ОНО - БЭКЕНД ЖДЕТ haslo ДЛЯ РЕГИСТРАЦИИ!
+                            const payload = {
+                                email: form.value.email,
+                                password: form.value.password, 
+                                imie: form.value.imie,
+                                nazwisko: form.value.nazwisko
+                            };
+                            await axios.post(`${API_URL}/auth/register`, payload);
+                            alert("Rejestracja udana! Możesz się teraz zalogować.");
                             isRegisterMode.value = false;
-                        } catch (e) { alert("Błąd rejestracji."); }
+                        } catch (e) {
+                            alert("Błąd rejestracji:\n" + JSON.stringify(e.response?.data?.detail || e.message, null, 2));
+                        }
                     } else {
                         try {
                             const p = new URLSearchParams();
@@ -173,7 +180,9 @@
                             const r = await axios.post(`${API_URL}/auth/login`, p);
                             setSession(r.data.access_token, form.value.email);
                             router.push('/');
-                        } catch (e) { alert("Błąd logowania."); }
+                        } catch (e) {
+                            alert("Błąd logowania:\n" + JSON.stringify(e.response?.data?.detail || e.message, null, 2));
+                        }
                     }
                 };
                 return { isRegisterMode, form, handleAuth };
