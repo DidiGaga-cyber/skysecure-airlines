@@ -25,11 +25,13 @@ class Token(BaseModel):
 class FlightOut(BaseModel):
     id_lotu: int
     numer_lotu: str
-    miejsce_wylotu: str
-    miejsce_przylotu: str
-    data_wylotu: datetime
-    cena: Decimal
-    wolne_miejsca: int
+    id_lotniska_odlotu: int
+    id_lotniska_przylotu: int
+    czas_odlotu: datetime # Было data_wylotu
+    czas_przylotu: datetime 
+    cena: float
+    liczba_miejsc: int # Было wolne_miejsca
+    status: str
 
     class Config:
         from_attributes = True
