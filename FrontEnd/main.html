@@ -12,7 +12,7 @@
     <!-- Vue 3 & Vue Router 4 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="app">
@@ -59,7 +59,7 @@
         </main>
     </div>
 
-    <script>
+<script>
         const { createApp, ref, computed } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
@@ -103,11 +103,43 @@
             setup() {
                 const isRegisterMode = ref(false);
                 const form = ref({ email: '', password: '', imie: '', nazwisko: '' });
+                const API_URL = 'http://localhost/api'; // URL do naszego backendu
 
-                const handleAuth = () => {
-                    // Imitacja zapisu JWT tokena
-                    setSession("fake_jwt_token", form.value.email);
-                    router.push('/');
+                const handleAuth = async () => {
+                    if (isRegisterMode.value) {
+                        // REJESTRACJA (wysyła JSON)
+                        try {
+                            const payload = {
+                                email: form.value.email,
+                                password: form.value.password,
+                                imie: form.value.imie,
+                                nazwisko: form.value.nazwisko
+                            };
+                            await axios.post(`${API_URL}/auth/register`, payload);
+                            alert("Rejestracja udana! Możesz się teraz zalogować.");
+                            isRegisterMode.value = false; // Przełącz na logowanie
+                        } catch (error) {
+                            console.error("Błąd rejestracji:", error);
+                            alert("Błąd rejestracji: " + (error.response?.data?.detail || "Sprawdź dane"));
+                        }
+                    } else {
+                        // LOGOWANIE (wysyła Form Data dla OAuth2)
+                        try {
+                            const params = new URLSearchParams();
+                            params.append('username', form.value.email);
+                            params.append('password', form.value.password);
+
+                            const response = await axios.post(`${API_URL}/auth/login`, params);
+                            
+                            // Zapisujemy Prawdziwy Token JWT w przeglądarce
+                            setSession(response.data.access_token, form.value.email);
+                            alert("Zalogowano pomyślnie!");
+                            router.push('/');
+                        } catch (error) {
+                            console.error("Błąd logowania:", error);
+                            alert("Błąd logowania: " + (error.response?.data?.detail || "Niepoprawne dane"));
+                        }
+                    }
                 };
 
                 return { isRegisterMode, form, handleAuth };
@@ -115,14 +147,13 @@
             template: `
                 <div class="max-w-md mx-auto">
                     <div class="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
-                        <!--LOGO -->
                         <div class="flex justify-center mb-6">
                             <img src="logo.jpg" alt="Logo" class="h-16 w-auto object-contain">
                         </div>
 
                         <div class="flex p-1.5 bg-slate-100 rounded-2xl mb-8">
-                            <button @click="isRegisterMode = false" :class="!isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-50'" class="flex-1 py-3 rounded-xl font-bold transition-all">Login</button>
-                            <button @click="isRegisterMode = true" :class="isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-50'" class="flex-1 py-3 rounded-xl font-bold transition-all">Rejestracja</button>
+                            <button @click="isRegisterMode = false" :class="!isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-3 rounded-xl font-bold transition-all">Login</button>
+                            <button @click="isRegisterMode = true" :class="isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-3 rounded-xl font-bold transition-all">Rejestracja</button>
                         </div>
 
                         <form @submit.prevent="handleAuth" class="space-y-4">
