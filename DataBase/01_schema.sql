@@ -32,3 +32,70 @@ CREATE TABLE Loty (
     liczba_miejsc INTEGER NOT NULL,
     status VARCHAR(20) DEFAULT 'Zaplanowany' -- Zaplanowany, W trakcie, Zakończony, Odwołany
 );
+
+
+-- SPRINT 4: Rezerwacje, Bilety i Miejsca 
+
+-- 1. Tabela Miejsc (Fizyczna mapa pokładu dla każdego lotu)
+-- Zamiast trzymać miejsca w JSON, relacyjna tabela pozwala łatwo filtrować wolne fotele.
+CREATE TABLE Miejsca (
+    id_miejsca INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_lotu INTEGER NOT NULL REFERENCES Loty(id_lotu) ON DELETE CASCADE,
+    numer_miejsca VARCHAR(5) NOT NULL, -- np. "12A", "1A"
+    klasa VARCHAR(20) DEFAULT 'Economy', -- Economy, Business, First
+    czy_wolne BOOLEAN DEFAULT TRUE,
+    -- GWARANCJA BAZY: Na jednym locie nie może być dwóch takich samych miejsc!
+    CONSTRAINT uq_lot_miejsce UNIQUE(id_lotu, numer_miejsca)
+);
+
+-- 2. Tabela Rezerwacji (Zamówienie - może zawierać kilka biletów)
+-- Rozdzielam "Koszyk/Zamówienie" od samego "Biletu", bo ktoś może kupić bilety dla całej rodziny.
+CREATE TABLE Rezerwacje (
+    id_rezerwacji INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_uzytkownika INTEGER NOT NULL REFERENCES Uzytkownicy(id_uzytkownika) ON DELETE CASCADE,
+    id_lotu INTEGER NOT NULL REFERENCES Loty(id_lotu) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'Oczekująca', -- Oczekująca, Opłacona, Anulowana
+    kwota_laczna DECIMAL(10, 2) NOT NULL,
+    data_utworzenia TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Tabela Biletów (Pasażerowie przypisani do konkretnego miejsca)
+CREATE TABLE Bilety (
+    id_biletu INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_rezerwacji INTEGER NOT NULL REFERENCES Rezerwacje(id_rezerwacji) ON DELETE CASCADE,
+    -- ON DELETE RESTRICT: Nie pozwolimy usunąć miejsca, jeśli jest na nie wystawiony bilet.
+    id_miejsca INTEGER NOT NULL REFERENCES Miejsca(id_miejsca) ON DELETE RESTRICT, 
+    imie_pasazera VARCHAR(50) NOT NULL,
+    nazwisko_pasazera VARCHAR(50) NOT NULL,
+    -- ZASZYFROWANE DANE: Tutaj wpadnie AES-256 z pgcrypto w Sprincie 5 (dlatego typ BYTEA - binarne).
+    dane_paszportowe BYTEA, 
+    -- GWARANCJA BAZY: Jedno fizyczne miejsce w samolocie = maksymalnie jeden bilet.
+    CONSTRAINT uq_miejsce_bilet UNIQUE(id_miejsca)
+);
+
+-- SPRINT 5: Płatności
+
+-- 4. Tabela Płatności (Śledzenie transakcji finansowych)
+-- tip: Trzymamy historię płatności z unikalnym UUID sesji dla symulacji bramek (PayU/Stripe).
+CREATE TABLE Platnosci (
+    id_platnosci INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_rezerwacji INTEGER NOT NULL REFERENCES Rezerwacje(id_rezerwacji) ON DELETE CASCADE,
+    kwota DECIMAL(10, 2) NOT NULL,
+    status_transakcji VARCHAR(20) DEFAULT 'Pending', -- Pending, Success, Failed
+    metoda VARCHAR(50) NOT NULL, -- np. Karta, BLIK
+    data_transakcji TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    identyfikator_sesji UUID -- Idealne do mockowania UC-5
+);
+
+-- SPRINT 7: Bezpieczeństwo i Audyt (OWASP)
+
+-- 5. Logi Audytowe (Śledzenie aktywności w systemie)
+-- tip: "ON DELETE SET NULL". Jeśli usuniemy hakera z bazy, jego logi MUSZĄ zostać dla prokuratury!
+CREATE TABLE Logi_Audytowe (
+    id_logu INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_uzytkownika INTEGER REFERENCES Uzytkownicy(id_uzytkownika) ON DELETE SET NULL, 
+    adres_ip VARCHAR(45), -- 45 znaków pokrywa standard IPv6
+    akcja VARCHAR(100) NOT NULL, -- np. 'LOGIN_FAILED', 'RESERVATION_CREATED'
+    szczegoly TEXT,
+    data_zdarzenia TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
