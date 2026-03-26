@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 import models
 from auth import router as auth_router
+from flights import router as flights_router
 
 # Сначала БД
 models.Base.metadata.create_all(bind=engine)
@@ -29,3 +30,4 @@ def health_check():
     return {"status": "ok", "database": "connected"}
 
 app.include_router(api_router)
+app.include_router(flights_router)
