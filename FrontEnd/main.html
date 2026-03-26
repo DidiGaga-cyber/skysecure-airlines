@@ -3,24 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SkySecure Airlines - Sprint 2</title>
+    <title>SkySecure Airlines - Sprint 3</title>
 
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Setup Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Vue 3 & Vue Router 4 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+
 </head>
 <body class="bg-slate-50 text-slate-900">
-    <div id="app">
-        <!-- Nagłówek strony-->
+    <div id="app" v-cloak>
         <header class="bg-white shadow-sm p-3 border-b border-slate-200 sticky top-0 z-50">
             <div class="container mx-auto flex justify-between items-center">
                 
-                <!-- Sekcja Logo -->
                 <div class="flex items-center space-x-3 cursor-pointer" @click="$router.push('/')">
                     <img src="logo.jpg" alt="SkySecure Logo" class="h-12 w-auto object-contain">
                     <div class="flex flex-col">
@@ -32,15 +28,13 @@
                 <nav class="space-x-6 flex items-center">
                     <router-link to="/" class="hidden md:block hover:text-blue-600 font-semibold transition-colors">Strona Główna</router-link>
                     
-                    <!-- Stan: NIE ZALOGOWANY -->
                     <router-link v-if="!isLoggedIn" to="/login" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 font-bold">
                         Zaloguj się
                     </router-link>
                     
-                    <!-- Stan: ZALOGOWANY -->
                     <div v-else class="flex items-center space-x-4">
                         <span class="text-sm font-semibold text-slate-700">{{ userEmail }}</span>
-                        <button @click="logout" class="text-slate-400 hover:text-red-500 transition-colors">
+                        <button @click="logout" class="p-2 bg-slate-100 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                             </svg>
@@ -50,7 +44,7 @@
             </div>
         </header>
 
-        <main class="container mx-auto mt-8 p-4">
+        <main class="container mx-auto mt-6 mb-16 p-4">
             <router-view v-slot="{ Component }">
                 <transition name="page" mode="out-in">
                     <component :is="Component" />
@@ -59,11 +53,13 @@
         </main>
     </div>
 
-<script>
-        const { createApp, ref, computed } = Vue;
+    <script>
+        const { createApp, ref, computed, reactive } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
-        // Logika przechowywania JWT
+        const API_URL = 'http://localhost/api'; 
+
+        // -- LOGIKA PRZECHOWYWANIA SESJI --
         const authToken = ref(localStorage.getItem('skysecure_token') || null);
         const userEmail = ref(localStorage.getItem('skysecure_user_email') || '');
 
@@ -81,67 +77,105 @@
             localStorage.removeItem('skysecure_user_email');
         };
 
-        // Strony
+        // -- STRONA GŁÓWNA --
         const Home = { 
             setup() {
-                const isLoggedIn = computed(() => !!authToken.value);
-                return { isLoggedIn, userEmail };
+                const searchForm = reactive({ from: '', to: '', date: '' });
+                const flights = ref([]);
+                const hasSearched = ref(false);
+                const isLoading = ref(false);
+
+                const searchFlights = async () => {
+                    isLoading.value = true;
+                    hasSearched.value = true;
+                    flights.value = [];
+                    try {
+                        const params = {};
+                        if (searchForm.from) params.from = searchForm.from;
+                        if (searchForm.to) params.to = searchForm.to;
+                        if (searchForm.date) params.date = searchForm.date;
+                        const response = await axios.get(`${API_URL}/flights/`, { params });
+                        flights.value = response.data;
+                    } catch (error) {
+                        alert("Błąd podczas wyszukiwania lotów.");
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
+                const formatTime = (d) => new Date(d).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+                const formatDate = (d) => new Date(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
+                const formatPrice = (p) => parseFloat(p).toLocaleString('pl-PL', { minimumFractionDigits: 2 });
+
+                return { searchForm, searchFlights, flights, hasSearched, isLoading, formatTime, formatDate, formatPrice };
             },
             template: `
-                <div class="max-w-4xl mx-auto text-center py-16">
-                    <h1 class="text-5xl font-black mb-6 text-slate-800 tracking-tight">Odkryj świat z <span class="text-blue-600">SkySecure</span></h1>
-                    <p class="text-xl text-slate-500 mb-10">System rezerwacji biletów lotniczych (Sprint 2).</p>
-                    
-                    <div v-if="isLoggedIn" class="bg-blue-50 text-blue-700 p-6 rounded-3xl border border-blue-100 inline-block">
-                        Zalogowano jako: <strong>{{ userEmail }}</strong>
+                <div class="space-y-12">
+                    <div class="relative bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl">
+                        <div class="absolute inset-0 bg-gradient-to-br from-blue-900 via-slate-800 to-slate-900 opacity-95"></div>
+                        <div class="relative z-10 px-6 py-16 md:py-24 max-w-5xl mx-auto text-center">
+                            <h1 class="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight">Gotowy na podróż?</h1>
+                            <form @submit.prevent="searchFlights" class="bg-white p-3 rounded-3xl shadow-xl flex flex-col md:flex-row gap-2 items-center text-left">
+                                <div class="flex-1 w-full px-4 py-2 border-b md:border-b-0 md:border-r border-slate-100">
+                                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Skąd</label>
+                                    <input v-model="searchForm.from" type="text" placeholder="Miasto wylotu" class="w-full bg-transparent text-lg font-bold outline-none">
+                                </div>
+                                <div class="flex-1 w-full px-4 py-2 border-b md:border-b-0 md:border-r border-slate-100">
+                                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Dokąd</label>
+                                    <input v-model="searchForm.to" type="text" placeholder="Miasto przylotu" class="w-full bg-transparent text-lg font-bold outline-none">
+                                </div>
+                                <div class="flex-1 w-full px-4 py-2">
+                                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                                    <input v-model="searchForm.date" type="date" class="w-full bg-transparent text-lg font-bold outline-none text-slate-600">
+                                </div>
+                                <button type="submit" class="w-full md:w-auto h-16 px-10 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all">Szukaj</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div v-if="hasSearched" class="max-w-4xl mx-auto">
+                        <div v-if="isLoading" class="text-center py-10">Ładowanie...</div>
+                        <div v-else-if="flights.length === 0" class="text-center py-10 bg-white rounded-3xl border">Brak wyników.</div>
+                        <div v-else class="space-y-4">
+                            <div v-for="flight in flights" :key="flight.id_lotu" class="bg-white p-6 rounded-3xl border flex flex-col md:flex-row justify-between items-center">
+                                <div>
+                                    <span class="text-2xl font-black">{{ formatTime(flight.data_wylotu) }}</span>
+                                    <span class="ml-4 text-slate-500 font-bold uppercase">{{ flight.miejsce_wylotu }} ✈ {{ flight.miejsce_przylotu }}</span>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-2xl font-black text-blue-600">{{ formatPrice(flight.cena) }} PLN</p>
+                                    <button class="bg-slate-900 text-white px-6 py-2 rounded-xl mt-2 font-bold">Rezerwuj</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            ` 
+            `
         };
 
+        // -- LOGOWANIE / REJESTRACJA --
         const Login = { 
             setup() {
                 const isRegisterMode = ref(false);
                 const form = ref({ email: '', password: '', imie: '', nazwisko: '' });
-                const API_URL = 'http://localhost/api'; // URL do naszego backendu
 
                 const handleAuth = async () => {
                     if (isRegisterMode.value) {
-                        // REJESTRACJA (wysyła JSON)
                         try {
-                            const payload = {
-                                email: form.value.email,
-                                password: form.value.password,
-                                imie: form.value.imie,
-                                nazwisko: form.value.nazwisko
-                            };
-                            await axios.post(`${API_URL}/auth/register`, payload);
-                            alert("Rejestracja udana! Możesz się teraz zalogować.");
-                            isRegisterMode.value = false; // Przełącz na logowanie
-                        } catch (error) {
-                            console.error("Błąd rejestracji:", error);
-                            alert("Błąd rejestracji: " + (error.response?.data?.detail || "Sprawdź dane"));
-                        }
+                            await axios.post(`${API_URL}/auth/register`, form.value);
+                            alert("Rejestracja udana!");
+                            isRegisterMode.value = false;
+                        } catch (e) { alert("Błąd rejestracji."); }
                     } else {
-                        // LOGOWANIE (wysyła Form Data dla OAuth2)
                         try {
-                            const params = new URLSearchParams();
-                            params.append('username', form.value.email);
-                            params.append('password', form.value.password);
-
-                            const response = await axios.post(`${API_URL}/auth/login`, params);
-                            
-                            // Zapisujemy Prawdziwy Token JWT w przeglądarce
-                            setSession(response.data.access_token, form.value.email);
-                            alert("Zalogowano pomyślnie!");
+                            const p = new URLSearchParams();
+                            p.append('username', form.value.email);
+                            p.append('password', form.value.password);
+                            const r = await axios.post(`${API_URL}/auth/login`, p);
+                            setSession(r.data.access_token, form.value.email);
                             router.push('/');
-                        } catch (error) {
-                            console.error("Błąd logowania:", error);
-                            alert("Błąd logowania: " + (error.response?.data?.detail || "Niepoprawne dane"));
-                        }
+                        } catch (e) { alert("Błąd logowania."); }
                     }
                 };
-
                 return { isRegisterMode, form, handleAuth };
             },
             template: `
@@ -151,19 +185,27 @@
                             <img src="logo.jpg" alt="Logo" class="h-16 w-auto object-contain">
                         </div>
 
-                        <div class="flex p-1.5 bg-slate-100 rounded-2xl mb-8">
-                            <button @click="isRegisterMode = false" :class="!isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-3 rounded-xl font-bold transition-all">Login</button>
-                            <button @click="isRegisterMode = true" :class="isRegisterMode ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-3 rounded-xl font-bold transition-all">Rejestracja</button>
+                        <div class="flex p-1.5 bg-slate-100 rounded-2xl mb-8 border border-slate-200">
+                            <button @click="isRegisterMode = false" 
+                                :class="[!isRegisterMode ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500', 'hover:text-slate-900']" 
+                                class="flex-1 py-3 rounded-xl font-bold transition-all duration-300">
+                                Login
+                            </button>
+                            <button @click="isRegisterMode = true" 
+                                :class="[isRegisterMode ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500', 'hover:text-slate-900']" 
+                                class="flex-1 py-3 rounded-xl font-bold transition-all duration-300">
+                                Rejestracja
+                            </button>
                         </div>
 
                         <form @submit.prevent="handleAuth" class="space-y-4">
                             <div v-if="isRegisterMode" class="grid grid-cols-2 gap-4">
-                                <input v-model="form.imie" type="text" placeholder="Imię" class="p-4 bg-slate-50 border rounded-2xl outline-none" required>
-                                <input v-model="form.nazwisko" type="text" placeholder="Nazwisko" class="p-4 bg-slate-50 border rounded-2xl outline-none" required>
+                                <input v-model="form.imie" type="text" placeholder="Imię" class="p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all" required>
+                                <input v-model="form.nazwisko" type="text" placeholder="Nazwisko" class="p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all" required>
                             </div>
-                            <input v-model="form.email" type="email" placeholder="Email" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none" required>
-                            <input v-model="form.password" type="password" placeholder="Hasło" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none" required>
-                            <button type="submit" class="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl hover:bg-slate-800 transition-all">
+                            <input v-model="form.email" type="email" placeholder="Email" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all" required>
+                            <input v-model="form.password" type="password" placeholder="Hasło" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all" required>
+                            <button type="submit" class="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl hover:bg-blue-600 transition-all mt-4">
                                 {{ isRegisterMode ? 'Zarejestruj się' : 'Zaloguj się' }}
                             </button>
                         </form>
@@ -172,16 +214,8 @@
             ` 
         };
 
-        const routes = [
-            { path: '/', component: Home },
-            { path: '/login', component: Login }
-        ];
-
-        const router = createRouter({
-            history: createWebHashHistory(),
-            routes,
-        });
-
+        const routes = [{ path: '/', component: Home }, { path: '/login', component: Login }];
+        const router = createRouter({ history: createWebHashHistory(), routes });
         const app = createApp({
             setup() {
                 const isLoggedIn = computed(() => !!authToken.value);
@@ -189,7 +223,6 @@
                 return { isLoggedIn, userEmail, logout };
             }
         });
-
         app.use(router);
         app.mount('#app');
     </script>
