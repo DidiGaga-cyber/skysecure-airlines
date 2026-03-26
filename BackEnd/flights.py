@@ -6,7 +6,7 @@ from datetime import date
 import models, schemas
 from database import get_db
 
-router = APIRouter(prefix="/api/flights", tags=["flights"])
+router = APIRouter(prefix="/flights", tags=["flights"])
 
 @router.get("/", response_model=List[schemas.FlightOut])
 def get_flights(
