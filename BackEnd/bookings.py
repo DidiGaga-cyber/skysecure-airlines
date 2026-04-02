@@ -10,10 +10,13 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 def create_reservation(
     reservation: schemas.ReservationCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user) # Требует авторизации!
+    current_user: models.User = Depends(get_current_user)
 ):
-    # 1. Проверяем, существует ли рейс
-    flight = db.query(models.Flight).filter(models.Flight.id_lotu == reservation.id_lotu).first()
+    # 1. Проверяем рейс и БЛОКИРУЕМ строку для других транзакций (Concurrency Control)
+    flight = db.query(models.Flight).filter(
+        models.Flight.id_lotu == reservation.id_lotu
+    ).with_for_update().first() 
+
     if not flight:
         raise HTTPException(status_code=404, detail="Lot nie znaleziony")
 
@@ -21,18 +24,18 @@ def create_reservation(
     if flight.liczba_miejsc <= 0:
         raise HTTPException(status_code=400, detail="Brak wolnych miejsc na ten lot")
 
-    # 3. Уменьшаем количество доступных мест
-    flight.liczba_miejsc -= 1
-
-    # 4. Создаем бронирование. Статус "Oczekująca" проставится автоматически БД
+    # 3. Создаем бронирование с указанием суммы (kwota_laczna)
     new_reservation = models.Rezerwacja(
         id_uzytkownika=current_user.id_uzytkownika,
-        id_lotu=reservation.id_lotu
+        id_lotu=reservation.id_lotu,
+        kwota_laczna=flight.cena  # Берем базовую цену из рейса
     )
-
     db.add(new_reservation)
     
-    # Можно сразу добавить лог действий пользователя (Audyt)
+    # 4. Уменьшаем количество доступных мест 
+    flight.liczba_miejsc -= 1
+
+    # 5. Добавляем лог аудита
     audit_log = models.LogAudytowy(
         id_uzytkownika=current_user.id_uzytkownika,
         akcja="RESERVATION_CREATED",
@@ -40,6 +43,7 @@ def create_reservation(
     )
     db.add(audit_log)
 
+    # 6. Фиксируем транзакцию (снимаем блокировку строки)
     db.commit()
     db.refresh(new_reservation)
 

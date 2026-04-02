@@ -48,3 +48,10 @@ class ReservationOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TicketCreate(BaseModel):
+    id_rezerwacji: int
+    id_miejsca: int
+    imie: str
+    nazwisko: str
+    paszport: str
