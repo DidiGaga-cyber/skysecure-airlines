@@ -4,6 +4,7 @@ from database import engine
 import models
 from auth import router as auth_router
 from flights import router as flights_router
+from bookings import router as bookings_router
 
 # Сначала БД
 models.Base.metadata.create_all(bind=engine)
@@ -31,3 +32,4 @@ def health_check():
 
 app.include_router(api_router)
 app.include_router(flights_router)
+app.include_router(bookings_router)

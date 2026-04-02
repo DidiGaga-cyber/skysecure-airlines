@@ -35,3 +35,16 @@ class FlightOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ReservationCreate(BaseModel):
+    id_lotu: int
+
+class ReservationOut(BaseModel):
+    id_rezerwacji: int
+    id_uzytkownika: int
+    id_lotu: int
+    data_rezerwacji: datetime
+    status: str
+
+    class Config:
+        from_attributes = True
