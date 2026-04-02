@@ -1,0 +1,36 @@
+1. АВТОРИЗАЦИЯ (Auth)
+---------------------------------------
+POST /auth/register
+   - Тело (JSON): { "email": "...", "password": "...", "imie": "...", "nazwisko": "..." }
+   - Успех: 200 OK + данные пользователя.
+
+POST /auth/login
+   - Тело (Form Data!): username (почта) и password.
+   - Успех: { "access_token": "...", "token_type": "bearer" }
+   - ВАЖНО: Полученный токен нужно вставлять в Header всех защищенных запросов:
+     Authorization: Bearer <ваш_токен>
+
+2. ПОИСК РЕЙСОВ (Flights)
+---------------------------------------
+GET /flights/
+   - Query параметры (опционально):
+     ?from=Warszawa  (Город или код IATA)
+     ?to=Krakow
+     ?date=2026-04-15
+   - Ответ: Список объектов рейса (id_lotu, numer_lotu, czas_odlotu, cena, liczba_miejsc).
+
+3. БРОНИРОВАНИЕ (Bookings) - [ТРЕБУЕТ ТОКЕН]
+---------------------------------------
+POST /bookings/
+   - Заголовок: Authorization: Bearer <token>
+   - Тело (JSON): { "id_lotu": 1 }
+   - Успех: 201 Created + детали брони (статус "Oczekująca").
+   - Ошибки: 
+     401 (Нет токена)
+     400 ("Brak wolnych miejsc" - если мест 0)
+     404 ("Lot nie znaleziony" - если ID рейса неверный)
+
+4. СТАТУС СЕРВЕРА
+---------------------------------------
+GET /health
+   - Ответ: {"status": "ok"} - для проверки связи с бэкендом.
