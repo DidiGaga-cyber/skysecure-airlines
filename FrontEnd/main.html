@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SkySecure Airlines - Sprint 3</title>
+    <title>SkySecure Airlines - Sprint 4</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
+    <link rel="stylesheet" href="style.css"> </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="app" v-cloak>
         <header class="bg-white shadow-sm p-3 border-b border-slate-200 sticky top-0 z-50">
@@ -53,7 +53,8 @@
 
     <script>
         const { createApp, ref, computed, reactive } = Vue;
-        const { createRouter, createWebHashHistory } = VueRouter;
+        // DODANE: useRoute i useRouter do obsługi parametrów URL
+        const { createRouter, createWebHashHistory, useRoute, useRouter } = VueRouter;
 
         const API_URL = 'http://127.0.0.1/api'; 
 
@@ -141,7 +142,7 @@
                                 </div>
                                 <div class="text-right">
                                     <p class="text-2xl font-black text-blue-600">{{ formatPrice(flight.cena) }} PLN</p>
-                                    <button class="bg-slate-900 text-white px-6 py-2 rounded-xl mt-2 font-bold">Rezerwuj</button>
+                                    <button @click="$router.push('/booking/' + flight.id_lotu)" class="bg-slate-900 text-white px-6 py-2 rounded-xl mt-2 font-bold hover:bg-slate-800 transition-all">Rezerwuj</button>
                                 </div>
                             </div>
                         </div>
@@ -150,7 +151,132 @@
             `
         };
 
-        // -- LOGOWANIE / REJESTRACJA --
+        // -- NOWE: KOMPONENT REZERWACJI (MAPA MIEJSC + FORMULARZ PASAŻERA) --
+        const Booking = {
+            setup() {
+                const route = useRoute();
+                const router = useRouter();
+                const flightId = route.params.id;
+
+                const step = ref(1); // 1 - Mapa Miejsc, 2 - Dane Pasażera
+                const selectedSeat = ref(null);
+                const passenger = reactive({ imie: '', nazwisko: '' });
+
+                // Mockowane dane miejsc (bazujące na Twoim seedzie SQL)
+                const seats = ref([
+                    { id: 1, numer_miejsca: '1A', klasa: 'Business', czy_wolne: false },
+                    { id: 2, numer_miejsca: '1B', klasa: 'Business', czy_wolne: true },
+                    { id: 3, numer_miejsca: '12A', klasa: 'Economy', czy_wolne: false },
+                    { id: 4, numer_miejsca: '12B', klasa: 'Economy', czy_wolne: true },
+                    { id: 5, numer_miejsca: '14A', klasa: 'Economy', czy_wolne: true },
+                    { id: 6, numer_miejsca: '14B', klasa: 'Economy', czy_wolne: true },
+                ]);
+
+                const selectSeat = (seat) => {
+                    if (seat.czy_wolne) {
+                        selectedSeat.value = seat;
+                    }
+                };
+
+                const getSeatClass = (seat) => {
+                    if (selectedSeat.value && selectedSeat.value.id === seat.id) return 'seat-selected';
+                    if (!seat.czy_wolne) return 'seat-occupied';
+                    return 'seat-available';
+                };
+
+                const proceedToForm = () => {
+                    if (selectedSeat.value) step.value = 2;
+                };
+
+                const submitBooking = () => {
+                    if (passenger.imie && passenger.nazwisko) {
+                        // Tutaj w przyszłości poleci zapytanie POST na backend
+                        alert(`Sukces! Zarezerwowano miejsce ${selectedSeat.value.numer_miejsca} dla pasażera ${passenger.imie} ${passenger.nazwisko}.`);
+                        router.push('/');
+                    }
+                };
+
+                return { flightId, step, seats, selectedSeat, passenger, selectSeat, getSeatClass, proceedToForm, submitBooking };
+            },
+            template: `
+                <div class="max-w-4xl mx-auto space-y-6">
+                    <button @click="step === 2 ? step = 1 : $router.push('/')" class="text-blue-600 font-bold hover:underline mb-4 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        Wróć
+                    </button>
+
+                    <div class="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100">
+                        <div v-if="step === 1">
+                            <h2 class="text-3xl font-black mb-2">Wybierz miejsce</h2>
+                            <p class="text-slate-500 mb-8 font-semibold">Lot ID: {{ flightId }}</p>
+
+                            <div class="flex space-x-6 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-5 h-5 rounded-md bg-white border-2 border-slate-300"></div>
+                                    <span class="text-sm font-bold text-slate-600">Wolne</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-5 h-5 rounded-md bg-slate-100 border-2 border-slate-200"></div>
+                                    <span class="text-sm font-bold text-slate-600 line-through">Zajęte</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-5 h-5 rounded-md bg-blue-600 border-2 border-blue-700"></div>
+                                    <span class="text-sm font-bold text-slate-600">Wybrane</span>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-center bg-slate-100 py-10 rounded-2xl border-2 border-slate-200">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div v-for="seat in seats" :key="seat.id" 
+                                         @click="selectSeat(seat)"
+                                         class="seat"
+                                         :class="getSeatClass(seat)"
+                                         :title="'Klasa: ' + seat.klasa">
+                                        {{ seat.numer_miejsca }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 flex justify-end">
+                                <button @click="proceedToForm" :disabled="!selectedSeat" 
+                                    :class="selectedSeat ? 'bg-slate-900 hover:bg-slate-800' : 'bg-slate-300 cursor-not-allowed'"
+                                    class="text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md">
+                                    Dalej: Dane Pasażera
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="step === 2">
+                            <h2 class="text-3xl font-black mb-2">Dane Pasażera</h2>
+                            <div class="bg-blue-50 text-blue-800 p-4 rounded-xl mb-6 font-bold flex items-center border border-blue-100">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Wybrane miejsce: {{ selectedSeat.numer_miejsca }} ({{ selectedSeat.klasa }})
+                            </div>
+                            
+                            <form @submit.prevent="submitBooking" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-600 mb-1">Imię pasażera</label>
+                                    <input v-model="passenger.imie" type="text" placeholder="Jan" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-semibold" required>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-600 mb-1">Nazwisko pasażera</label>
+                                    <input v-model="passenger.nazwisko" type="text" placeholder="Kowalski" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-semibold" required>
+                                </div>
+                                
+                                <div class="pt-4 border-t border-slate-100 mt-6 flex justify-end space-x-4">
+                                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-100">
+                                        Potwierdź rezerwację
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            `
+        };
+
+        // -- LOGOWANIE / REJESTRACJA (Zaktualizowane o nową klasę auth-switch-container z CSS) --
         const Login = { 
             setup() {
                 const isRegisterMode = ref(false);
@@ -159,7 +285,6 @@
                 const handleAuth = async () => {
                     if (isRegisterMode.value) {
                         try {
-                            // ВОТ ОНО - БЭКЕНД ЖДЕТ haslo ДЛЯ РЕГИСТРАЦИИ!
                             const payload = {
                                 email: form.value.email,
                                 password: form.value.password, 
@@ -194,15 +319,13 @@
                             <img src="logo.jpg" alt="Logo" class="h-16 w-auto object-contain">
                         </div>
 
-                        <div class="flex p-1.5 bg-slate-100 rounded-2xl mb-8 border border-slate-200">
+                        <div class="auth-switch-container">
                             <button @click="isRegisterMode = false" 
-                                :class="[!isRegisterMode ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500', 'hover:text-slate-900']" 
-                                class="flex-1 py-3 rounded-xl font-bold transition-all duration-300">
+                                :class="['auth-btn', !isRegisterMode ? 'auth-btn-active' : '']">
                                 Login
                             </button>
                             <button @click="isRegisterMode = true" 
-                                :class="[isRegisterMode ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500', 'hover:text-slate-900']" 
-                                class="flex-1 py-3 rounded-xl font-bold transition-all duration-300">
+                                :class="['auth-btn', isRegisterMode ? 'auth-btn-active' : '']">
                                 Rejestracja
                             </button>
                         </div>
@@ -223,8 +346,15 @@
             ` 
         };
 
-        const routes = [{ path: '/', component: Home }, { path: '/login', component: Login }];
+        // ZMIANA: Dodano nową ścieżkę do rutera
+        const routes = [
+            { path: '/', component: Home }, 
+            { path: '/login', component: Login },
+            { path: '/booking/:id', component: Booking } // Nowa ścieżka
+        ];
+        
         const router = createRouter({ history: createWebHashHistory(), routes });
+        
         const app = createApp({
             setup() {
                 const isLoggedIn = computed(() => !!authToken.value);

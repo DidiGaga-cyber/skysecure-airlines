@@ -46,3 +46,44 @@
     color: #0f172a; /* Czarny */
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); /* shadow-md */
 }
+
+/* --- NOWE: STYLE DLA MAPY MIEJSC (UC-7) --- */
+.seat {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.seat-available {
+    background-color: #ffffff;
+    border: 2px solid #cbd5e1; /* Szara ramka */
+    color: #475569;
+}
+
+.seat-available:hover {
+    border-color: #3b82f6; /* Niebieska ramka przy najechaniu */
+    color: #3b82f6;
+}
+
+.seat-occupied {
+    background-color: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    color: #cbd5e1;
+    cursor: not-allowed;
+    text-decoration: line-through; /* Przekreślenie zajętych */
+}
+
+.seat-selected {
+    background-color: #2563eb; /* Niebieskie tło */
+    border: 2px solid #1d4ed8;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4);
+    transform: scale(1.05);
+}
