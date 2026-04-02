@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkySecure Airlines - Strona Główna</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="css/index.css"> 
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="app" v-cloak>
+        <header class="bg-white shadow-sm p-3 border-b border-slate-200 sticky top-0 z-50">
+            <div class="container mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3 cursor-pointer" @click="resetView">
+                    <img src="logo.jpg" alt="Logo" class="h-12 w-auto object-contain">
+                    <div class="flex flex-col">
+                        <span class="text-xl font-black tracking-tight leading-none text-slate-800 uppercase">SkySecure</span>
+                        <span class="text-xs font-bold text-blue-600 tracking-widest uppercase">Airlines</span>
+                    </div>
+                </div>
+
+                <nav class="space-x-6 flex items-center">
+                    <a v-if="!isLoggedIn" href="login.html" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 font-bold">
+                        Zaloguj się
+                    </a>
+                    
+                    <div v-else class="flex items-center space-x-4">
+                        <span class="text-sm font-semibold text-slate-700">{{ userEmail }}</span>
+                        <button @click="logout" class="p-2 bg-slate-100 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                            Wyloguj
+                        </button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <main class="container mx-auto mt-6 mb-16 p-4">
+            
+            <div v-if="!activeFlightId" class="space-y-12">
+                <div class="relative bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-900 via-slate-800 to-slate-900 opacity-95"></div>
+                    <div class="relative z-10 px-6 py-16 md:py-24 max-w-5xl mx-auto text-center">
+                        <h1 class="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight">Gotowy na podróż?</h1>
+                        <form @submit.prevent="searchFlights" class="bg-white p-3 rounded-3xl shadow-xl flex flex-col md:flex-row gap-2 items-center text-left">
+                            <div class="flex-1 w-full px-4 py-2 border-b md:border-b-0 md:border-r border-slate-100">
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Skąd</label>
+                                <input v-model="searchForm.from" type="text" placeholder="Lublin" class="w-full bg-transparent text-lg font-bold outline-none">
+                            </div>
+                            <div class="flex-1 w-full px-4 py-2 border-b md:border-b-0 md:border-r border-slate-100">
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Dokąd</label>
+                                <input v-model="searchForm.to" type="text" placeholder="Miasto przylotu" class="w-full bg-transparent text-lg font-bold outline-none">
+                            </div>
+                            <div class="flex-1 w-full px-4 py-2">
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                                <input v-model="searchForm.date" type="date" class="w-full bg-transparent text-lg font-bold outline-none text-slate-600">
+                            </div>
+                            <button type="submit" class="w-full md:w-auto h-16 px-10 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all">Szukaj</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div v-if="hasSearched" class="max-w-4xl mx-auto">
+                    <div v-if="isLoading" class="text-center py-10">Ładowanie...</div>
+                    <div v-else-if="flights.length === 0" class="text-center py-10 bg-white rounded-3xl border">Brak wyników.</div>
+                    <div v-else class="space-y-4">
+                        <div v-for="flight in flights" :key="flight.id_lotu" class="bg-white p-6 rounded-3xl border flex flex-col md:flex-row justify-between items-center">
+                            <div>
+                                <span class="text-2xl font-black">{{ formatTime(flight.data_wylotu) }}</span>
+                                <span class="ml-4 text-slate-500 font-bold uppercase">{{ flight.miejsce_wylotu }} ✈ {{ flight.miejsce_przylotu }}</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-black text-blue-600">{{ formatPrice(flight.cena) }} PLN</p>
+                                <button @click="startBooking(flight.id_lotu)" class="bg-slate-900 text-white px-6 py-2 rounded-xl mt-2 font-bold hover:bg-slate-800 transition-all">Rezerwuj</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="max-w-4xl mx-auto space-y-6">
+                <button @click="resetView" class="text-blue-600 font-bold hover:underline mb-4 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    Wróć do wyszukiwania
+                </button>
+                
+                <div class="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100">
+                    <h2 class="text-3xl font-black mb-2">Wybierz miejsce</h2>
+                    <p class="text-slate-500 mb-6 font-semibold">Lot ID: {{ activeFlightId }}</p>
+
+                    <div class="flex justify-center bg-slate-100 py-10 rounded-2xl border-2 border-slate-200">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div v-for="seat in seats" :key="seat.id" @click="selectSeat(seat)" class="seat" :class="getSeatClass(seat)">
+                                {{ seat.numer_miejsca }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="selectedSeat" class="mt-10 border-t border-slate-200 pt-8">
+                        <h3 class="text-2xl font-black mb-4">Dane Pasażera</h3>
+                        <div class="bg-blue-50 text-blue-800 p-4 rounded-xl mb-6 font-bold flex items-center border border-blue-100">
+                            Wybrane miejsce: {{ selectedSeat.numer_miejsca }}
+                        </div>
+                        
+                        <form @submit.prevent="submitBooking" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-600 mb-1">Imię pasażera</label>
+                                    <input v-model="passenger.imie" type="text" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all" required>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-600 mb-1">Nazwisko pasażera</label>
+                                    <input v-model="passenger.nazwisko" type="text" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all" required>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 flex justify-end">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-100">
+                                    Potwierdź rezerwację
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script type="module" src="js/index.js"></script>
+</body>
+</html>
