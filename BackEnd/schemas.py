@@ -39,11 +39,13 @@ class FlightOut(BaseModel):
 class ReservationCreate(BaseModel):
     id_lotu: int
 
+
+## changed data_rezerwacji: datetime into data_utworzenia: datetime
 class ReservationOut(BaseModel):
     id_rezerwacji: int
     id_uzytkownika: int
     id_lotu: int
-    data_rezerwacji: datetime
+    data_utworzenia: datetime
     status: str
 
     class Config:

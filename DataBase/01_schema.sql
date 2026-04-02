@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 1.  Użytkownicy 
-CREATE TABLE Uzytkownicy (
+CREATE TABLE uzytkownicy (
     id_uzytkownika INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nazwisko VARCHAR(50) NOT NULL,
     imie VARCHAR(30) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE Uzytkownicy (
 );
 
 -- 2. Lotniska 
-CREATE TABLE Lotniska (
+CREATE TABLE lotniska (
     id_lotniska INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     kod_iata VARCHAR(3) UNIQUE NOT NULL, -- np. WAW, LUZ, JFK
     nazwa VARCHAR(100) NOT NULL,
@@ -21,11 +21,11 @@ CREATE TABLE Lotniska (
 );
 
 -- 3. Loty 
-CREATE TABLE Loty (
+CREATE TABLE loty (
     id_lotu INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     numer_lotu VARCHAR(10) UNIQUE NOT NULL, -- np. SK101
-    id_lotniska_odlotu INTEGER NOT NULL REFERENCES Lotniska(id_lotniska) ON DELETE CASCADE,
-    id_lotniska_przylotu INTEGER NOT NULL REFERENCES Lotniska(id_lotniska) ON DELETE CASCADE,
+    id_lotniska_odlotu INTEGER NOT NULL REFERENCES lotniska(id_lotniska) ON DELETE CASCADE,
+    id_lotniska_przylotu INTEGER NOT NULL REFERENCES lotniska(id_lotniska) ON DELETE CASCADE,
     czas_odlotu TIMESTAMP NOT NULL,
     czas_przylotu TIMESTAMP NOT NULL,
     cena DECIMAL(10, 2) NOT NULL,
@@ -38,9 +38,9 @@ CREATE TABLE Loty (
 
 -- 1. Tabela Miejsc (Fizyczna mapa pokładu dla każdego lotu)
 -- Zamiast trzymać miejsca w JSON, relacyjna tabela pozwala łatwo filtrować wolne fotele.
-CREATE TABLE Miejsca (
+CREATE TABLE miejsca (
     id_miejsca INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    id_lotu INTEGER NOT NULL REFERENCES Loty(id_lotu) ON DELETE CASCADE,
+    id_lotu INTEGER NOT NULL REFERENCES loty(id_lotu) ON DELETE CASCADE,
     numer_miejsca VARCHAR(5) NOT NULL, -- np. "12A", "1A"
     klasa VARCHAR(20) DEFAULT 'Economy', -- Economy, Business, First
     czy_wolne BOOLEAN DEFAULT TRUE,
@@ -50,21 +50,21 @@ CREATE TABLE Miejsca (
 
 -- 2. Tabela Rezerwacji (Zamówienie - może zawierać kilka biletów)
 -- Rozdzielam "Koszyk/Zamówienie" od samego "Biletu", bo ktoś może kupić bilety dla całej rodziny.
-CREATE TABLE Rezerwacje (
+CREATE TABLE rezerwacje (
     id_rezerwacji INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    id_uzytkownika INTEGER NOT NULL REFERENCES Uzytkownicy(id_uzytkownika) ON DELETE CASCADE,
-    id_lotu INTEGER NOT NULL REFERENCES Loty(id_lotu) ON DELETE CASCADE,
+    id_uzytkownika INTEGER NOT NULL REFERENCES uzytkownicy(id_uzytkownika) ON DELETE CASCADE,
+    id_lotu INTEGER NOT NULL REFERENCES loty(id_lotu) ON DELETE CASCADE,
     status VARCHAR(20) DEFAULT 'Oczekująca', -- Oczekująca, Opłacona, Anulowana
     kwota_laczna DECIMAL(10, 2) NOT NULL,
     data_utworzenia TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 3. Tabela Biletów (Pasażerowie przypisani do konkretnego miejsca)
-CREATE TABLE Bilety (
+CREATE TABLE bilety (
     id_biletu INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    id_rezerwacji INTEGER NOT NULL REFERENCES Rezerwacje(id_rezerwacji) ON DELETE CASCADE,
+    id_rezerwacji INTEGER NOT NULL REFERENCES rezerwacje(id_rezerwacji) ON DELETE CASCADE,
     -- ON DELETE RESTRICT: Nie pozwolimy usunąć miejsca, jeśli jest na nie wystawiony bilet.
-    id_miejsca INTEGER NOT NULL REFERENCES Miejsca(id_miejsca) ON DELETE RESTRICT, 
+    id_miejsca INTEGER NOT NULL REFERENCES miejsca(id_miejsca) ON DELETE RESTRICT, 
     imie_pasazera VARCHAR(50) NOT NULL,
     nazwisko_pasazera VARCHAR(50) NOT NULL,
     -- ZASZYFROWANE DANE: Tutaj wpadnie AES-256 z pgcrypto w Sprincie 5 (dlatego typ BYTEA - binarne).
@@ -77,9 +77,9 @@ CREATE TABLE Bilety (
 
 -- 4. Tabela Płatności (Śledzenie transakcji finansowych)
 -- tip: Trzymamy historię płatności z unikalnym UUID sesji dla symulacji bramek (PayU/Stripe).
-CREATE TABLE Platnosci (
+CREATE TABLE platnosci (
     id_platnosci INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    id_rezerwacji INTEGER NOT NULL REFERENCES Rezerwacje(id_rezerwacji) ON DELETE CASCADE,
+    id_rezerwacji INTEGER NOT NULL REFERENCES rezerwacje(id_rezerwacji) ON DELETE CASCADE,
     kwota DECIMAL(10, 2) NOT NULL,
     status_transakcji VARCHAR(20) DEFAULT 'Pending', -- Pending, Success, Failed
     metoda VARCHAR(50) NOT NULL, -- np. Karta, BLIK
@@ -91,9 +91,9 @@ CREATE TABLE Platnosci (
 
 -- 5. Logi Audytowe (Śledzenie aktywności w systemie)
 -- tip: "ON DELETE SET NULL". Jeśli usuniemy hakera z bazy, jego logi MUSZĄ zostać dla prokuratury!
-CREATE TABLE Logi_Audytowe (
+CREATE TABLE logi_audytowe (
     id_logu INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    id_uzytkownika INTEGER REFERENCES Uzytkownicy(id_uzytkownika) ON DELETE SET NULL, 
+    id_uzytkownika INTEGER REFERENCES uzytkownicy(id_uzytkownika) ON DELETE SET NULL, 
     adres_ip VARCHAR(45), -- 45 znaków pokrywa standard IPv6
     akcja VARCHAR(100) NOT NULL, -- np. 'LOGIN_FAILED', 'RESERVATION_CREATED'
     szczegoly TEXT,
