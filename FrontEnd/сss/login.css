@@ -1,29 +1,84 @@
+/* Техническая часть: скрывает переменные Vue {{...}} до полной загрузки страницы */
 [v-cloak] { display: none; }
 
-.auth-switch-container {
-    border: 2px solid #334155; 
-    padding: 0.375rem;
-    background-color: #f1f5f9; 
-    border-radius: 1rem;
-    display: flex; 
+/* Контейнер для кнопок выбора режима */
+.flex.gap-4 {
+    display: flex;
+    gap: 1rem;
     margin-bottom: 2rem;
 }
 
-.auth-btn {
-    flex: 1; 
-    padding: 0.75rem 0; 
+/* Базовый стиль кнопок Logowanie / Rejestracja */
+.auth-tab-btn {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
     font-weight: 700;
-    border-radius: 0.75rem; 
-    transition: all 0.3s ease; 
-    color: #64748b; 
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 12px;
+    background: transparent;
+    /* Тонкая, не сильно выделяющаяся рамка */
+    border: 1px solid #e2e8f0; 
+    color: #64748b;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
 }
 
-.auth-btn:hover { 
-    color: #0f172a; 
+/* Эффект при наведении (изменение цвета и легкое всплытие) */
+.auth-tab-btn:hover:not(.active) {
+    border-color: #3b82f6; /* Синий цвет рамки */
+    color: #3b82f6;
+    background-color: #eff6ff; /* Очень легкий голубой фон */
+    transform: translateY(-1px);
 }
 
-.auth-btn-active { 
-    background-color: white; 
-    color: #0f172a; 
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+/* Стиль активной (выбранной) кнопки */
+.auth-tab-btn.active {
+    background-color: #ffffff;
+    border: 2px solid #0f172a; /* Темная выразительная рамка */
+    color: #0f172a;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+/* Поля ввода (Input) */
+input {
+    width: 100%;
+    padding: 1rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+input:focus {
+    border-color: #3b82f6;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Главная кнопка отправки формы (Zaloguj / Zarejestruj) */
+button[type="submit"] {
+    width: 100%;
+    padding: 1.1rem;
+    background: #0f172a;
+    color: white;
+    border-radius: 1rem;
+    font-weight: 800;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+}
+
+button[type="submit"]:hover {
+    background: #1e293b;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.3);
+}
+
+button[type="submit"]:active {
+    transform: translateY(0);
 }

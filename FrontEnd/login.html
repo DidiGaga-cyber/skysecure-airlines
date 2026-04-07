@@ -18,10 +18,19 @@
                 <img src="logo.jpg" alt="Logo" class="h-16 w-auto object-contain">
             </div>
 
-            <div class="auth-switch-container">
-                <button @click="isRegisterMode = false" :class="['auth-btn', !isRegisterMode ? 'auth-btn-active' : '']">Login</button>
-                <button @click="isRegisterMode = true" :class="['auth-btn', isRegisterMode ? 'auth-btn-active' : '']">Rejestracja</button>
-            </div>
+                <div class="flex p-1.5 bg-slate-100 rounded-2xl mb-8 border border-slate-200 shadow-inner">
+                    
+                    <button type="button" @click="isRegisterMode = false"
+                            :class="[!isRegisterMode ? 'bg-white text-slate-900 shadow-md rounded-xl' : 'text-slate-400 hover:text-slate-600', 'flex-1 py-3 text-xs sm:text-sm font-black uppercase tracking-widest transition-all duration-300 ease-out']">
+                        Logowanie
+                    </button>
+                    
+                    <button type="button" @click="isRegisterMode = true"
+                            :class="[isRegisterMode ? 'bg-white text-slate-900 shadow-md rounded-xl' : 'text-slate-400 hover:text-slate-600', 'flex-1 py-3 text-xs sm:text-sm font-black uppercase tracking-widest transition-all duration-300 ease-out']">
+                        Rejestracja
+                    </button>
+
+                </div>
 
             <form @submit.prevent="handleAuth" class="space-y-4">
                 <div v-if="isRegisterMode" class="grid grid-cols-2 gap-4">

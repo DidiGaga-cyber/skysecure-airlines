@@ -1,6 +1,6 @@
 import { API_URL, getAuthToken, getUserEmail, clearSession } from './state.js';
 
-const { createApp, ref, reactive } = Vue;
+const { createApp, ref, reactive, onMounted } = Vue;
 
 createApp({
     setup() {
@@ -8,6 +8,11 @@ createApp({
         const isLoggedIn = ref(!!getAuthToken());
         const userEmail = ref(getUserEmail());
         
+        // Ustawienie tokena dla wszystkich zapytań Axios
+        if (isLoggedIn.value) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${getAuthToken()}`;
+        }
+
         const logout = () => { 
             clearSession(); 
             window.location.reload(); 
@@ -23,7 +28,12 @@ createApp({
             isLoading.value = true; 
             hasSearched.value = true;
             try {
-                const params = { ...searchForm };
+                // Usuwamy puste pola, żeby nie wysyłać undefined/null do API
+                const params = {};
+                if (searchForm.from) params.from = searchForm.from;
+                if (searchForm.to) params.to = searchForm.to;
+                if (searchForm.date) params.date = searchForm.date;
+
                 const response = await axios.get(`${API_URL}/flights/`, { params });
                 flights.value = response.data;
             } catch (error) {
@@ -33,28 +43,31 @@ createApp({
             }
         };
 
-        // REZERWACJA
+        // REZERWACJA (Sprint 4)
         const activeFlightId = ref(null);
         const selectedSeat = ref(null);
-        const passenger = reactive({ imie: '', nazwisko: '' });
+        // Dodano pole paszport (wymagane przez backend)
+        const passenger = reactive({ imie: '', nazwisko: '', paszport: '' });
         
-        // Mockowane miejsca (potem podłączysz pod API)
+        // Zaktualizowana struktura pod bazę danych
+        // Gdy Backend doda endpoint GET /flights/{id}/miejsca, po prostu zrobisz przypisanie do tej zmiennej
         const seats = ref([
-            { id: 1, numer_miejsca: '1A', czy_wolne: false },
-            { id: 2, numer_miejsca: '1B', czy_wolne: true },
-            { id: 3, numer_miejsca: '12A', czy_wolne: false },
-            { id: 4, numer_miejsca: '12B', czy_wolne: true },
-            { id: 5, numer_miejsca: '14A', czy_wolne: true },
-            { id: 6, numer_miejsca: '14B', czy_wolne: true }
+            { id_miejsca: 1, numer_miejsca: '1A', klasa: 'Business', czy_wolne: false },
+            { id_miejsca: 2, numer_miejsca: '1B', klasa: 'Business', czy_wolne: true },
+            { id_miejsca: 3, numer_miejsca: '12A', klasa: 'Economy', czy_wolne: false },
+            { id_miejsca: 4, numer_miejsca: '12B', klasa: 'Economy', czy_wolne: true },
+            { id_miejsca: 5, numer_miejsca: '14A', klasa: 'Economy', czy_wolne: true },
+            { id_miejsca: 6, numer_miejsca: '14B', klasa: 'Economy', czy_wolne: true }
         ]);
 
-        const startBooking = (id) => {
+        const startBooking = (id_lotu) => {
             if (!isLoggedIn.value) {
                 alert("Musisz się zalogować, aby zarezerwować bilet.");
                 window.location.href = 'login.html';
                 return;
             }
-            activeFlightId.value = id;
+            activeFlightId.value = id_lotu;
+            // Tutaj w przyszłości: seats.value = await axios.get(`${API_URL}/flights/${id_lotu}/miejsca`)
         };
 
         const resetView = () => { 
@@ -62,6 +75,7 @@ createApp({
             selectedSeat.value = null; 
             passenger.imie = '';
             passenger.nazwisko = '';
+            passenger.paszport = '';
         };
 
         const selectSeat = (seat) => { 
@@ -69,20 +83,44 @@ createApp({
         };
         
         const getSeatClass = (seat) => {
-            if (selectedSeat.value?.id === seat.id) return 'seat-selected';
+            if (selectedSeat.value?.id_miejsca === seat.id_miejsca) return 'seat-selected';
             return seat.czy_wolne ? 'seat-available' : 'seat-occupied';
         };
 
-        const submitBooking = () => {
-            if (passenger.imie && passenger.nazwisko && selectedSeat.value) {
-                // Tu w przyszłości będzie axios.post(...)
-                alert(`Sukces! Zarezerwowano miejsce ${selectedSeat.value.numer_miejsca} dla: ${passenger.imie} ${passenger.nazwisko}`);
-                resetView();
+        const submitBooking = async () => {
+            if (passenger.imie && passenger.nazwisko && passenger.paszport && selectedSeat.value) {
+                try {
+                    // Krok 1: Tworzymy rezerwację (blokuje miejsce na lot w kolumnie liczba_miejsc)
+                    const bookingResponse = await axios.post(`${API_URL}/bookings/`, {
+                        id_lotu: activeFlightId.value
+                    });
+                    
+                    const id_rezerwacji = bookingResponse.data.id_rezerwacji;
+
+                    // Krok 2: Wystawiamy bilet na konkretne miejsce z szyfrowaniem paszportu
+                    await axios.post(`${API_URL}/tickets/`, {
+                        id_rezerwacji: id_rezerwacji,
+                        id_miejsca: selectedSeat.value.id_miejsca,
+                        imie: passenger.imie,
+                        nazwisko: passenger.nazwisko,
+                        paszport: passenger.paszport
+                    });
+
+                    alert(`Sukces! Zarezerwowano miejsce ${selectedSeat.value.numer_miejsca}. Dane paszportowe zostały zaszyfrowane (AES-256).`);
+                    resetView();
+                    // Opcjonalnie: odśwież listę lotów
+                    searchFlights();
+                } catch (error) {
+                    console.error(error);
+                    alert("Błąd podczas rezerwacji: " + (error.response?.data?.detail || error.message));
+                }
+            } else {
+                alert("Wypełnij wszystkie dane i wybierz miejsce.");
             }
         };
 
         // POMOCNICZE FORMATERY
-        const formatTime = (d) => new Date(d).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+        const formatTime = (d) => new Date(d).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
         const formatPrice = (p) => parseFloat(p).toLocaleString('pl-PL', { minimumFractionDigits: 2 });
 
         return { 
