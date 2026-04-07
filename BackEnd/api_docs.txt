@@ -34,3 +34,16 @@ POST /bookings/
 ---------------------------------------
 GET /health
    - Ответ: {"status": "ok"} - для проверки связи с бэкендом.
+
+5. КАРТА МЕСТ (SEAT MAP)
+---------------------------------------
+GET /flights/{id_lotu}/seats
+
+interface Seat {
+  id_miejsca: number;
+  id_lotu: number;
+  numer_miejsca: string;
+  klasa: string;
+  czy_wolne: boolean;
+}
+---------------------------------------

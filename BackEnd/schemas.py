@@ -57,3 +57,14 @@ class TicketCreate(BaseModel):
     imie: str
     nazwisko: str
     paszport: str
+
+
+class SeatOut(BaseModel):
+    id_miejsca: int
+    id_lotu: int
+    numer_miejsca: str
+    klasa: str
+    czy_wolne: bool
+
+    class Config:
+        from_attributes = True
