@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
@@ -47,3 +47,23 @@ def get_flights(
         query = query.filter(func.date(models.Flight.czas_odlotu) == departure_date)
 
     return query.all()
+
+@router.get("/{id_lotu}/seats", response_model=List[schemas.SeatOut])
+def get_flight_seats(id_lotu: int, db: Session = Depends(get_db)):
+    """
+    Возвращает список всех мест для конкретного рейса с их статусом (свободно/занято).
+    """
+    # 1. Проверяем, существует ли такой рейс вообще
+    flight = db.query(models.Flight).filter(models.Flight.id_lotu == id_lotu).first()
+    if not flight:
+        raise HTTPException(status_code=404, detail="Lot nie znaleziony")
+
+    # 2. Получаем все места из таблицы Miejsca для этого рейса
+    # В моделях этот класс называется Miejsce (судя по твоему файлу tickets.py)
+    seats = db.query(models.Miejsce).filter(models.Miejsce.id_lotu == id_lotu).order_by(models.Miejsce.id_miejsca).all()
+    
+    # 3. Если мест в базе нет (например, рейс создан, но скрипт генерации мест не запущен)
+    if not seats:
+        return []
+
+    return seats
