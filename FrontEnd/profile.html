@@ -3,162 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mój Profil - SkySecure</title>
-    
+    <title>Twój Profil - SkySecure</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="css/profile.css">
-    <link rel="stylesheet" href="css/index.css"> </head>
+</head>
 <body class="bg-slate-50 text-slate-900">
     <div id="app" v-cloak>
-        <header class="bg-white shadow-sm p-3 border-b border-slate-200 sticky top-0 z-50">
+        <header class="bg-white shadow-sm p-4 border-b border-slate-200">
             <div class="container mx-auto flex justify-between items-center">
-                <a href="index.html" class="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
-                    <img src="logo.jpg" alt="Logo" class="h-12 w-auto object-contain">
-                    <div class="flex flex-col">
-                        <span class="text-xl font-black tracking-tight leading-none text-slate-800 uppercase">SkySecure</span>
-                        <span class="text-xs font-bold text-blue-600 tracking-widest uppercase">Airlines</span>
-                    </div>
-                </a>
-
-                <nav class="space-x-6 flex items-center">
-                    <a href="index.html" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors">Szukaj lotów</a>
-                    <div class="flex items-center space-x-4 border-l pl-6 border-slate-200">
-                        <span class="text-sm font-black text-slate-800">{{ userEmail }}</span>
-                        <button @click="logout" class="p-2 bg-slate-100 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all font-bold text-sm">
-                            Wyloguj
-                        </button>
-                    </div>
-                </nav>
+                <div class="flex items-center space-x-3 cursor-pointer" @click="goToHome">
+                    <img src="logo.jpg" alt="Logo" class="h-10 w-auto">
+                    <span class="text-xl font-black uppercase tracking-tight">SkySecure</span>
+                </div>
+                <button @click="logout" class="text-red-500 font-bold hover:underline">Wyloguj</button>
             </div>
         </header>
 
-        <main class="container mx-auto mt-10 mb-16 p-4 max-w-6xl">
-            <div class="flex flex-col lg:flex-row gap-8">
-                
-                <aside class="lg:w-1/3">
-                    <div class="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 sticky top-28">
-                        <div class="flex flex-col items-center text-center">
-                            <div class="w-24 h-24 bg-gradient-to-tr from-blue-600 to-blue-400 rounded-full flex items-center justify-center text-white text-4xl font-black shadow-lg shadow-blue-200 mb-4">
-                                {{ userData.imie.charAt(0) }}{{ userData.nazwisko.charAt(0) }}
-                            </div>
-                            <h2 class="text-2xl font-black text-slate-800">{{ userData.imie }} {{ userData.nazwisko }}</h2>
-                            <p class="text-slate-500 font-semibold mb-6">{{ userEmail }}</p>
-                            
-                            <div class="w-full border-t border-slate-100 pt-6 mt-2 space-y-4">
-                                <div class="flex justify-between items-center text-sm">
-                                    <span class="text-slate-500 font-semibold">Rola konta</span>
-                                    <span class="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-full">{{ userData.rola }}</span>
-                                </div>
-                                <div class="flex justify-between items-center text-sm">
-                                    <span class="text-slate-500 font-semibold">Konto aktywne od</span>
-                                    <span class="font-bold text-slate-800">{{ userData.data_rejestracji }}</span>
-                                </div>
-                            </div>
+        <main class="container mx-auto mt-10 p-4">
+            <div class="max-w-2xl mx-auto bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-slate-100">
+                <div class="bg-slate-900 p-10 text-center">
+                    <div class="w-24 h-24 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-4xl font-black shadow-lg">
+                        {{ userInitials }}
+                    </div>
+                    <h1 class="text-white text-3xl font-black">{{ userName }} {{ userSurname }}</h1>
+                    <p class="text-blue-400 font-bold uppercase tracking-widest text-xs mt-2">Stały Klient SkySecure</p>
+                </div>
+
+                <div class="p-10 space-y-6">
+                    <div class="flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div class="text-slate-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         </div>
-                    </div>
-                </aside>
-
-                <section class="lg:w-2/3">
-                    <h1 class="text-4xl font-black text-slate-900 mb-8 tracking-tight">Moje Rezerwacje</h1>
-                    
-                    <div class="flex space-x-4 mb-8 bg-slate-200 p-1.5 rounded-2xl w-fit">
-                        <button @click="activeTab = 'active'" 
-                                :class="['px-6 py-2.5 rounded-xl font-bold text-sm transition-all', activeTab === 'active' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
-                            Nadchodzące loty
-                        </button>
-                        <button @click="activeTab = 'history'" 
-                                :class="['px-6 py-2.5 rounded-xl font-bold text-sm transition-all', activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
-                            Historia podróży
-                        </button>
-                    </div>
-
-                    <div v-if="isLoading" class="text-center py-10 font-bold text-slate-400">Ładowanie biletów...</div>
-                    <div v-else-if="filteredTickets.length === 0" class="bg-white p-10 rounded-[2rem] border border-slate-100 text-center shadow-sm">
-                        <p class="text-xl font-bold text-slate-500 mb-2">Brak rezerwacji w tej kategorii</p>
-                        <a href="index.html" class="text-blue-600 font-bold hover:underline">Wyszukaj nowe loty</a>
-                    </div>
-                    
-                    <div v-else class="space-y-6">
-                        <div v-for="ticket in filteredTickets" :key="ticket.id_biletu" class="ticket-card bg-white rounded-[2rem] border border-slate-200 shadow-lg overflow-hidden flex flex-col md:flex-row relative">
-                            
-                            <div class="flex-1 p-6 md:border-r-[2px] border-dashed border-slate-200 relative bg-gradient-to-br from-white to-slate-50">
-                                <div class="flex justify-between items-center mb-6">
-                                    <span class="text-xs font-black bg-blue-100 text-blue-700 px-3 py-1 rounded-full uppercase tracking-wider">Lot {{ ticket.numer_lotu }}</span>
-                                    <span :class="['text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider', getStatusClass(ticket.status)]">
-                                        {{ ticket.status }}
-                                    </span>
-                                </div>
-                                
-                                <div class="flex items-center justify-between mb-8 relative">
-                                    <div class="text-center">
-                                        <div class="text-4xl font-black text-slate-800">{{ ticket.odlot_iata }}</div>
-                                        <div class="text-xs font-bold text-slate-400 uppercase mt-1">{{ ticket.odlot_miasto }}</div>
-                                    </div>
-                                    <div class="flex-1 px-4 flex flex-col items-center">
-                                        <div class="text-xs font-bold text-slate-400 mb-1">✈</div>
-                                        <div class="w-full h-[2px] bg-slate-200 relative">
-                                            <div class="absolute inset-0 bg-blue-500 w-1/2"></div>
-                                        </div>
-                                    </div>
-                                    <div class="text-center">
-                                        <div class="text-4xl font-black text-slate-800">{{ ticket.przylot_iata }}</div>
-                                        <div class="text-xs font-bold text-slate-400 uppercase mt-1">{{ ticket.przylot_miasto }}</div>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                    <div>
-                                        <span class="block text-[10px] font-black text-slate-400 uppercase mb-1">Odlot</span>
-                                        <span class="block text-sm font-bold text-slate-800">{{ formatDateTime(ticket.czas_odlotu) }}</span>
-                                    </div>
-                                    <div>
-                                        <span class="block text-[10px] font-black text-slate-400 uppercase mb-1">Przylot</span>
-                                        <span class="block text-sm font-bold text-slate-800">{{ formatDateTime(ticket.czas_przylotu) }}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="ticket-cutout-top absolute left-0 right-0 md:left-auto md:top-0 md:-mt-4 md:-ml-4 z-10 hidden md:block"></div>
-                            <div class="ticket-cutout-bottom absolute left-0 right-0 md:left-auto md:bottom-0 md:-mb-4 md:-ml-4 z-10 hidden md:block"></div>
-
-                            <div class="md:w-64 p-6 bg-slate-900 text-white flex flex-col justify-between rounded-b-[2rem] md:rounded-bl-none md:rounded-r-[2rem]">
-                                <div>
-                                    <div class="mb-4">
-                                        <span class="block text-[10px] font-black text-slate-400 uppercase mb-1">Pasażer</span>
-                                        <span class="block text-lg font-black">{{ ticket.imie_pasazera }} {{ ticket.nazwisko_pasazera }}</span>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <span class="block text-[10px] font-black text-slate-400 uppercase mb-1">Miejsce</span>
-                                            <span class="block text-2xl font-black text-blue-400">{{ ticket.numer_miejsca }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="block text-[10px] font-black text-slate-400 uppercase mb-1">Klasa</span>
-                                            <span class="block text-sm font-bold mt-2">{{ ticket.klasa }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="border-t border-slate-700 pt-4 mt-2 flex justify-between items-end">
-                                    <div>
-                                        <span class="block text-[10px] font-black text-slate-400 uppercase mb-1">Cena rezerwacji</span>
-                                        <span class="block text-lg font-black">{{ formatPrice(ticket.cena) }} PLN</span>
-                                    </div>
-                                    <button class="text-blue-400 hover:text-white transition-colors" title="Pobierz PDF (Sprint 7)">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                    </button>
-                                </div>
-                            </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Adres Email</p>
+                            <p class="font-bold text-slate-800">{{ userEmail }}</p>
                         </div>
                     </div>
 
-                </section>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-6 bg-blue-50 rounded-3xl border border-blue-100 text-center">
+                            <p class="text-2xl font-black text-blue-600">0</p>
+                            <p class="text-[10px] font-black text-blue-800 uppercase">Moje Loty</p>
+                        </div>
+                        <div class="p-6 bg-slate-900 rounded-3xl text-center">
+                            <p class="text-2xl font-black text-white">PRO</p>
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Status konta</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
-    <script type="module" src="js/profile.js"></script>
+    <script src="js/profile.js"></script>
 </body>
 </html>
