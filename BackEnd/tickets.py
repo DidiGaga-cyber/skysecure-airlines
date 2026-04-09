@@ -44,7 +44,7 @@ def create_ticket(
         imie_pasazera=ticket.imie,
         nazwisko_pasazera=ticket.nazwisko,
         # Магия pgcrypto: вызываем функцию БД с явным указанием AES-256
-        dane_paszportowe=func.pgp_sym_encrypt(ticket.paszport, DB_ENCRYPTION_KEY, 'cipher-algo=aes256')
+        # dane_paszportowe=func.pgp_sym_encrypt(ticket.paszport, DB_ENCRYPTION_KEY, 'cipher-algo=aes256') # Убрано, так как паспортные данные больше не требуются для бронирования
     )
     db.add(new_ticket)
 

@@ -68,7 +68,9 @@ CREATE TABLE bilety (
     imie_pasazera VARCHAR(50) NOT NULL,
     nazwisko_pasazera VARCHAR(50) NOT NULL,
     -- ZASZYFROWANE DANE: Tutaj wpadnie AES-256 z pgcrypto w Sprincie 5 (dlatego typ BYTEA - binarne).
-    dane_paszportowe BYTEA, 
+    
+    --dane_paszportowe BYTEA, -- Not needed. Reservation doesn't requeire passport data anymore.
+
     -- GWARANCJA BAZY: Jedno fizyczne miejsce w samolocie = maksymalnie jeden bilet.
     CONSTRAINT uq_miejsce_bilet UNIQUE(id_miejsca)
 );

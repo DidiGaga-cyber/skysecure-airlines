@@ -56,7 +56,7 @@ class TicketCreate(BaseModel):
     id_miejsca: int
     imie: str
     nazwisko: str
-    paszport: str
+    ## paszport: str # Убрано, так как паспортные данные больше не требуются для бронирования
 
 
 class SeatOut(BaseModel):
