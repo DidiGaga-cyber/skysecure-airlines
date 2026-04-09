@@ -47,6 +47,8 @@ Upewnij sie, ze Docker jest wlaczony, a nastepnie w terminalu wykonaj:
 ```bash
 docker-compose down -v
 docker-compose up -d --build
+Get-Content ./DataBase/01_schema.sql | docker exec -i skysecure_db psql -U skysecure_user -d skysecure_db
+Get-Content ./DataBase/02_seed.sql | docker exec -i skysecure_db psql -U skysecure_user -d skysecure_db
 ```
 (Flaga -v jest wymagana do wyczyszczenia starych wolumenow i zaladowania nowych danych testowych z plikow .sql).
 
