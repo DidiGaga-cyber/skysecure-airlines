@@ -101,3 +101,5 @@ CREATE TABLE logi_audytowe (
     szczegoly TEXT,
     data_zdarzenia TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
