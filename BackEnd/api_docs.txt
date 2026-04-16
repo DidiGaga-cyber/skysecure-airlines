@@ -47,3 +47,24 @@ interface Seat {
   czy_wolne: boolean;
 }
 ---------------------------------------
+
+6. ПРОЦЕСС ОПЛАТЫ (Payments)
+---------------------------------------
+POST /paymeny/process
+
+{
+  "id_rezerwacji": number,
+  "metoda": "string"
+}
+
+	
+Response body
+{
+  "id_platnosci": number,
+  "id_rezerwacji": number,
+  "kwota": "int",
+  "status_transakcji": "string",
+  "metoda": "string",
+  "identyfikator_sesji": "Optional[UUID]"
+}
+---------------------------------------
