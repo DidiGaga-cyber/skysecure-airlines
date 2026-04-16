@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -65,6 +66,21 @@ class SeatOut(BaseModel):
     numer_miejsca: str
     klasa: str
     czy_wolne: bool
+
+    class Config:
+        from_attributes = True
+
+class PaymentCreate(BaseModel):
+    id_rezerwacji: int
+    metoda: str  # например: "BLIK", "Karta", "ApplePay"
+
+class PaymentOut(BaseModel):
+    id_platnosci: int
+    id_rezerwacji: int
+    kwota: Decimal
+    status_transakcji: str
+    metoda: str
+    identyfikator_sesji: Optional[UUID]
 
     class Config:
         from_attributes = True
