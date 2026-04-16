@@ -35,20 +35,17 @@ INSERT INTO rezerwacje (id_uzytkownika, id_lotu, status, kwota_laczna) VALUES
  (SELECT id_lotu FROM loty WHERE numer_lotu = 'SK1001'), 
  'Opłacona', 2500.00);
 
--- 3. Generujemy bilety dla tej rezerwacji (Używamy Posiomu Szyfrowania AES-256 dla paszportu!)
--- Używamy klucza 'SkySecureKey2026' do zaszyfrowania danych w locie
-INSERT INTO bilety (id_rezerwacji, id_miejsca, imie_pasazera, nazwisko_pasazera, dane_paszportowe) VALUES
+-- 3. Generujemy bilety dla tej rezerwacji (Paszporty usunięte zgodnie ze schematem)
+INSERT INTO bilety (id_rezerwacji, id_miejsca, imie_pasazera, nazwisko_pasazera) VALUES
 (
     (SELECT id_rezerwacji FROM rezerwacje LIMIT 1),
     (SELECT id_miejsca FROM miejsca WHERE numer_miejsca = '12A' AND id_lotu = (SELECT id_lotu FROM loty WHERE numer_lotu = 'SK1001')),
-    'Testowy', 'Pasażer',
-    pgp_sym_encrypt('AA1234567', 'SkySecureKey2026')
+    'Testowy', 'Pasażer'
 ),
 (
     (SELECT id_rezerwacji FROM rezerwacje LIMIT 1),
     (SELECT id_miejsca FROM miejsca WHERE numer_miejsca = '1A' AND id_lotu = (SELECT id_lotu FROM loty WHERE numer_lotu = 'SK1001')),
-    'Jan', 'Kowalski',
-    pgp_sym_encrypt('BB9876543', 'SkySecureKey2026')
+    'Jan', 'Kowalski'
 );
 
 -- 4. Symulacja udanej płatności (Generujemy losowy identyfikator sesji UUID!)

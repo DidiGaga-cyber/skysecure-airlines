@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer # Добавили стандарт OAuth2
 import models, schemas, auth_utils
 from database import get_db
 from jose import JWTError, jwt
 from auth_utils import SECRET_KEY, ALGORITHM
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -57,4 +59,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None:
         raise credentials_exception
+    
+    db.execute(text("SET LOCAL app.current_user_id = :uid"), {"uid": user.id_uzytkownika})
+    db.execute(text("SET LOCAL app.current_user_role = :role"), {"role": user.rola})
+    
+    db_role = "app_admin_role" if user.rola == "Admin" else "app_user_role"
+    db.execute(text(f"SET LOCAL ROLE {db_role}"))
+
     return user
