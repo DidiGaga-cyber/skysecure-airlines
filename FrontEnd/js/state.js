@@ -1,14 +1,18 @@
-export const API_URL = 'http://127.0.0.1/api'; 
+export const API_URL = 'http://127.0.0.1/api';
 
-export const getAuthToken = () => localStorage.getItem('skysecure_token');
-export const getUserEmail = () => localStorage.getItem('skysecure_user_email');
+export const getAuthToken = () => localStorage.getItem('token');export const getUserEmail    = () => localStorage.getItem('userEmail');
 
 export const setSession = (token, email) => {
-    localStorage.setItem('skysecure_token', token);
-    localStorage.setItem('skysecure_user_email', email);
+    localStorage.setItem('token', token);
+    localStorage.setItem('userEmail', email);
 };
 
 export const clearSession = () => {
-    localStorage.removeItem('skysecure_token');
-    localStorage.removeItem('skysecure_user_email');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    // Дополнительные ключи, которые пишет login.js и profile.js
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userSurname');
 };
