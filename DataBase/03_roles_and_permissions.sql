@@ -36,10 +36,12 @@ GRANT SELECT, INSERT ON platnosci TO app_user_role;
 
 -- Профиль пользователя и логи
 GRANT SELECT, UPDATE ON uzytkownicy TO app_user_role;
-GRANT INSERT ON logi_audytowe TO app_user_role;
+GRANT SELECT, INSERT ON logi_audytowe TO app_user_role;
 
 -- Права на все ID (последовательности)
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO app_user_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user_role;
+
+
 
 -- SEKCJA 3: UPRAWNIENIA DLA ROLI app_admin_role (Admin)
 GRANT app_user_role TO app_admin_role;
