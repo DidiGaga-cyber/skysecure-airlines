@@ -9,53 +9,173 @@
     <link rel="stylesheet" href="css/profile.css">
 </head>
 <body class="bg-slate-50 text-slate-900">
-    <div id="app" v-cloak>
-        <header class="bg-white shadow-sm p-4 border-b border-slate-200">
-            <div class="container mx-auto flex justify-between items-center">
-                <div class="flex items-center space-x-3 cursor-pointer" @click="goToHome">
-                    <img src="logo.jpg" alt="Logo" class="h-10 w-auto">
-                    <span class="text-xl font-black uppercase tracking-tight">SkySecure</span>
+<div id="app" v-cloak>
+
+    <!-- ── HEADER ──────────────────────────────────────────────────────────── -->
+    <header class="bg-white shadow-sm p-4 border-b border-slate-200">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3 cursor-pointer" @click="goToHome">
+                <img src="logo.jpg" alt="Logo" class="h-10 w-auto">
+                <div class="flex flex-col leading-tight">
+                    <span class="text-lg font-black uppercase tracking-tight text-slate-800">SkySecure</span>
+                    <span class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Airlines</span>
                 </div>
-                <button @click="logout" class="text-red-500 font-bold hover:underline">Wyloguj</button>
             </div>
-        </header>
+            <div class="flex items-center gap-4">
+                <button @click="goToHome"
+                        class="text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors">
+                    ← Strona główna
+                </button>
+                <button @click="logout"
+                        class="text-sm font-bold text-red-500 hover:text-red-700 hover:underline transition-all">
+                    Wyloguj
+                </button>
+            </div>
+        </div>
+    </header>
 
-        <main class="container mx-auto mt-10 p-4">
-            <div class="max-w-2xl mx-auto bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-slate-100">
-                <div class="bg-slate-900 p-10 text-center">
-                    <div class="w-24 h-24 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-4xl font-black shadow-lg">
-                        {{ userInitials }}
+    <!-- ── MAIN ─────────────────────────────────────────────────────────────── -->
+    <main class="container mx-auto mt-8 p-4 pb-16">
+        <div class="max-w-3xl mx-auto space-y-6">
+
+            <!-- ── Karta profilu ── -->
+            <div class="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-slate-100">
+                <!-- Nagłówek profilowy -->
+                <div class="bg-slate-900 p-10 text-center relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-48 h-48 bg-blue-500 rounded-full opacity-5 translate-x-16 -translate-y-16"></div>
+                    <div class="absolute bottom-0 left-0 w-32 h-32 bg-indigo-400 rounded-full opacity-5 -translate-x-8 translate-y-8"></div>
+                    <div class="relative z-10">
+                        <div class="w-24 h-24 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-4xl font-black shadow-lg ring-4 ring-blue-500/30">
+                            {{ userInitials }}
+                        </div>
+                        <h1 class="text-white text-3xl font-black">{{ userName }} {{ userSurname }}</h1>
+                        <p class="text-blue-400 font-bold uppercase tracking-widest text-xs mt-2">Stały Klient SkySecure</p>
                     </div>
-                    <h1 class="text-white text-3xl font-black">{{ userName }} {{ userSurname }}</h1>
-                    <p class="text-blue-400 font-bold uppercase tracking-widest text-xs mt-2">Stały Klient SkySecure</p>
                 </div>
 
-                <div class="p-10 space-y-6">
+                <!-- Info kontaktowe i statystyki -->
+                <div class="p-8 space-y-6">
+                    <!-- Email -->
                     <div class="flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <div class="text-slate-400">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <div class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
                         </div>
                         <div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase">Adres Email</p>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adres Email</p>
                             <p class="font-bold text-slate-800">{{ userEmail }}</p>
                         </div>
                     </div>
 
+                    <!-- Statystyki -->
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="p-6 bg-blue-50 rounded-3xl border border-blue-100 text-center">
-                            <p class="text-2xl font-black text-blue-600">0</p>
-                            <p class="text-[10px] font-black text-blue-800 uppercase">Moje Loty</p>
+                        <div class="stat-card p-6 bg-blue-50 rounded-3xl border border-blue-100 text-center">
+                            <p class="text-3xl font-black text-blue-600">{{ flightCount }}</p>
+                            <p class="text-[10px] font-black text-blue-800 uppercase tracking-wider mt-1">Moje Loty</p>
                         </div>
-                        <div class="p-6 bg-slate-900 rounded-3xl text-center">
-                            <p class="text-2xl font-black text-white">Użytkownik</p>
-                            <p class="text-[10px] font-black text-slate-400 uppercase">Status konta</p>
+                        <div class="stat-card p-6 bg-slate-900 rounded-3xl text-center">
+                            <p class="text-xl font-black text-white">Użytkownik</p>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-1">Status konta</p>
                         </div>
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
 
-    <script src="js/profile.js"></script>
+            <!-- ── Moje Rezerwacje ── -->
+            <div class="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden">
+                <div class="flex justify-between items-center px-8 pt-8 pb-4">
+                    <h2 class="text-2xl font-black tracking-tight">Moje Rezerwacje</h2>
+                    <span class="bg-slate-100 text-slate-600 text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
+                        {{ bookings.length }} łącznie
+                    </span>
+                </div>
+
+                <!-- Brak rezerwacji -->
+                <div v-if="bookings.length === 0" class="px-8 pb-12 text-center">
+                    <div class="empty-icon text-6xl mb-4 mt-6">✈️</div>
+                    <h3 class="font-black text-slate-700 text-lg mb-2">Brak rezerwacji</h3>
+                    <p class="text-slate-400 text-sm mb-6">Nie masz jeszcze żadnych zarezerwowanych lotów.</p>
+                    <button @click="goToHome"
+                            class="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-slate-200">
+                        Zarezerwuj pierwszą podróż →
+                    </button>
+                </div>
+
+                <!-- Lista rezerwacji -->
+                <div v-else class="divide-y divide-slate-100">
+                    <div v-for="(booking, index) in bookings" :key="booking.id_rezerwacji || index"
+                         class="booking-row px-8 py-6">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                            <!-- Lewa strona: dane lotu -->
+                            <div class="flex items-start gap-4">
+                                <!-- Ikonka lotu -->
+                                <div class="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+                                    <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                                        <span class="text-xs font-black uppercase tracking-widest bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">
+                                            {{ booking.numer_lotu }}
+                                        </span>
+                                        <span :class="['text-xs font-black uppercase px-2.5 py-1 rounded-lg border', getStatusClass(booking.status)]">
+                                            {{ getStatusLabel(booking.status) }}
+                                        </span>
+                                    </div>
+                                    <p class="font-black text-slate-800 text-lg">
+                                        Miejsce <span class="text-blue-600">{{ booking.seat }}</span>
+                                        <span class="text-sm font-bold text-slate-400 ml-2">({{ booking.klasa }})</span>
+                                    </p>
+                                    <p class="text-sm text-slate-500 font-semibold mt-0.5">
+                                        Pasażer: {{ booking.pasazer }}
+                                    </p>
+                                    <div class="flex items-center gap-4 mt-1 flex-wrap">
+                                        <p class="text-xs text-slate-400 font-semibold">
+                                            <span class="font-black text-slate-600">Odlot:</span>
+                                            {{ formatFlightDate(booking.czas_odlotu) }}
+                                        </p>
+                                        <p class="text-xs text-slate-400 font-semibold">
+                                            <span class="font-black text-slate-600">Zakup:</span>
+                                            {{ formatDate(booking.data_zakupu) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Prawa strona: kwota i metoda -->
+                            <div class="text-right shrink-0">
+                                <p class="text-2xl font-black text-slate-800">{{ formatPrice(booking.kwota) }} PLN</p>
+                                <p class="text-xs text-slate-400 font-semibold mt-1">
+                                    {{ getMethodIcon(booking.metoda) }} {{ booking.metoda }}
+                                </p>
+                                <p class="text-[10px] text-slate-300 font-mono mt-1">
+                                    #{{ booking.id_rezerwacji }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer karty -->
+                <div v-if="bookings.length > 0" class="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                    <p class="text-xs text-slate-400 font-semibold">
+                        Dane przechowywane lokalnie na tym urządzeniu
+                    </p>
+                    <button @click="goToHome"
+                            class="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors">
+                        + Nowa rezerwacja
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="js/profile.js"></script>
 </body>
 </html>

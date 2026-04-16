@@ -1,37 +1,31 @@
 import { API_URL, getAuthToken, getUserEmail, clearSession } from './state.js';
-
 const { createApp, ref, reactive, computed } = Vue;
 
-// ── НАСТРОЙКА AXIOS (ИНТЕРЦЕПТОР) ──────────────────────────────────────────
-// Это гарантирует, что ПЕРЕД каждым запросом будет взят актуальный токен
+// ── AXIOS INTERCEPTOR ────────────────────────────────────────────────────────
 axios.interceptors.request.use(config => {
     const token = getAuthToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
-}, error => {
-    return Promise.reject(error);
-});
+}, error => Promise.reject(error));
 
 createApp({
     setup() {
+        // ── AUTH ─────────────────────────────────────────────────────────────
         const isLoggedIn = ref(!!getAuthToken());
         const userEmail  = ref(getUserEmail());
+        const logout = () => { clearSession(); window.location.reload(); };
 
-        const logout = () => {
-            clearSession();
-            window.location.reload();
-        };
+        // ── WIDOK: 'search' | 'booking' | 'payment' | 'success' ─────────────
+        const currentView = ref('search');
 
-        // ... (поиск рейсов остается как был) ...
-        const searchForm = reactive({ from: '', to: '', date: '' });
-        const flights    = ref([]);
+        // ── WYSZUKIWANIE ─────────────────────────────────────────────────────
+        const searchForm  = reactive({ from: '', to: '', date: '' });
+        const flights     = ref([]);
         const hasSearched = ref(false);
         const isLoading   = ref(false);
 
         const searchFlights = async () => {
-            isLoading.value = true;
+            isLoading.value   = true;
             hasSearched.value = true;
             try {
                 const params = {};
@@ -47,25 +41,32 @@ createApp({
             }
         };
 
-        // ── БРОНИРОВАНИЕ ──────────────────────────────────────────────────────
-        const activeFlightId = ref(null);
-        const selectedSeat = ref(null);
-        const passenger = reactive({ imie: '', nazwisko: '' });
-        const seats = ref([]);
-        const isBookingLoading = ref(false);
+        // ── REZERWACJA ───────────────────────────────────────────────────────
+        const activeFlightId    = ref(null);
+        const currentFlight     = ref(null);
+        const selectedSeat      = ref(null);
+        const passenger         = reactive({ imie: '', nazwisko: '' });
+        const seats             = ref([]);
+        const isBookingLoading  = ref(false);
+        const hoverSeat         = ref(null);
 
+        // Grupowanie miejsc według numerów rzędów
         const groupedSeats = computed(() => {
             const groups = {};
             seats.value.forEach(seat => {
-                const match = seat.numer_miejsca.match(/(\d+)([A-Z]+)/);
-                const row = match ? match[1] : 'Inne';
+                const match = seat.numer_miejsca.match(/^(\d+)([A-Z]+)$/);
+                const row   = match ? match[1] : 'Inne';
                 if (!groups[row]) groups[row] = [];
                 groups[row].push(seat);
             });
-            return Object.keys(groups).sort((a,b) => parseInt(a)-parseInt(b)).map(row => ({
-                row,
-                seats: groups[row].sort((a,b) => a.numer_miejsca.localeCompare(b.numer_miejsca))
-            }));
+            return Object.keys(groups)
+                .sort((a, b) => parseInt(a) - parseInt(b))
+                .map(row => ({
+                    row,
+                    left:  groups[row].filter(s => /[ABC]$/.test(s.numer_miejsca)).sort((a,b) => a.numer_miejsca.localeCompare(b.numer_miejsca)),
+                    right: groups[row].filter(s => /[DEF]$/.test(s.numer_miejsca)).sort((a,b) => a.numer_miejsca.localeCompare(b.numer_miejsca)),
+                    all:   groups[row].sort((a,b) => a.numer_miejsca.localeCompare(b.numer_miejsca))
+                }));
         });
 
         const startBooking = async (id) => {
@@ -75,59 +76,54 @@ createApp({
                 return;
             }
             activeFlightId.value = id;
+            currentFlight.value  = flights.value.find(f => f.id_lotu === id) || null;
+            currentView.value    = 'booking';
             try {
                 const response = await axios.get(`${API_URL}/flights/${id}/seats`);
                 seats.value = response.data;
             } catch (error) {
-                alert("Nie udało się załadować miejsc.");
+                alert("Nie udało się załadować mapy miejsc.");
             }
         };
 
-        // ИСПРАВЛЕННЫЙ SUBMIT BOOKING
+        // Dane rezerwacji przekazywane do ekranu płatności
+        const reservationData = reactive({ id_rezerwacji: null, kwota: 0 });
+
         const submitBooking = async () => {
             const token = getAuthToken();
-            
-            // Проверка 1: Есть ли токен вообще?
             if (!token) {
                 alert("Błąd autoryzacji: Brak tokena. Zaloguj się ponownie.");
                 window.location.href = 'login.html';
                 return;
             }
-
             if (!passenger.imie || !passenger.nazwisko || !selectedSeat.value) {
-                alert("Wypełnij wszystkie pola!");
+                alert("Wypełnij wszystkie pola i wybierz miejsce!");
                 return;
             }
-
             isBookingLoading.value = true;
-            
             try {
-                console.log("Wysyłanie rezerwacji z tokenem:", token); // Для отладки
-
-                // ШАГ 1: Создание реzerwacji
-                // Благодаря интерцептору выше, заголовок Authorization добавится сам
+                // Krok 1: Utwórz rezerwację
                 const resBooking = await axios.post(`${API_URL}/bookings/`, {
                     id_lotu: activeFlightId.value
                 });
-                
                 const id_rezerwacji = resBooking.data.id_rezerwacji;
 
-                // ШАГ 2: Создание билета
+                // Krok 2: Utwórz bilet
                 await axios.post(`${API_URL}/tickets/`, {
-                    id_rezerwacji: id_rezerwacji,
+                    id_rezerwacji,
                     id_miejsca: selectedSeat.value.id_miejsca,
-                    imie: passenger.imie,
-                    nazwisko: passenger.nazwisko
+                    imie:       passenger.imie,
+                    nazwisko:   passenger.nazwisko
                 });
 
-                alert(`Sukces! Zarezerwowano miejsce ${selectedSeat.value.numer_miejsca}`);
-                resetView();
-                searchFlights();
+                // Przejście do ekranu płatności
+                reservationData.id_rezerwacji = id_rezerwacji;
+                reservationData.kwota         = parseFloat(currentFlight.value?.cena || 0);
+                currentView.value = 'payment';
             } catch (error) {
-                console.error("Детали ошибки 401:", error.response);
                 if (error.response?.status === 401) {
                     alert("Sesja wygasła. Zaloguj się ponownie.");
-                    logout(); // Очищаем всё и на логин
+                    logout();
                 } else {
                     alert("Błąd: " + (error.response?.data?.detail || "Serwer nie odpowiada"));
                 }
@@ -136,30 +132,155 @@ createApp({
             }
         };
 
+        // ── PŁATNOŚĆ ─────────────────────────────────────────────────────────
+        const paymentMethod    = ref('Karta');
+        const cardDetails      = reactive({ number: '', expiry: '', cvc: '', name: '' });
+        const blikCode         = ref('');
+        const isPaymentLoading = ref(false);
+        const successData      = reactive({
+            id_platnosci: null, identyfikator_sesji: null, kwota: 0, metoda: ''
+        });
+
+        // Auto-formatowanie numeru karty: "4111 1111 1111 1111"
+        const onCardNumberInput = (e) => {
+            let raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+            cardDetails.number = raw.replace(/(.{4})/g, '$1 ').trim();
+        };
+        const onExpiryInput = (e) => {
+            let raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+            if (raw.length >= 3) raw = raw.slice(0,2) + '/' + raw.slice(2);
+            cardDetails.expiry = raw;
+        };
+
+        const processPayment = async () => {
+            if (paymentMethod.value === 'Karta') {
+                if (!cardDetails.number || !cardDetails.expiry || !cardDetails.cvc || !cardDetails.name) {
+                    alert("Wypełnij wszystkie dane karty!");
+                    return;
+                }
+            }
+            if (paymentMethod.value === 'BLIK') {
+                if (blikCode.value.replace(/\D/g,'').length !== 6) {
+                    alert("Wprowadź poprawny 6-cyfrowy kod BLIK!");
+                    return;
+                }
+            }
+            isPaymentLoading.value = true;
+            try {
+                const res = await axios.post(`${API_URL}/payments/process`, {
+                    id_rezerwacji: reservationData.id_rezerwacji,
+                    metoda: paymentMethod.value
+                });
+                successData.id_platnosci       = res.data.id_platnosci;
+                successData.identyfikator_sesji = res.data.identyfikator_sesji;
+                successData.kwota              = res.data.kwota;
+                successData.metoda             = res.data.metoda;
+
+                // Zapisz do localStorage → profil
+                _saveBookingToStorage(res.data);
+                currentView.value = 'success';
+            } catch (error) {
+                if (error.response?.status === 401) {
+                    alert("Sesja wygasła. Zaloguj się ponownie.");
+                    logout();
+                } else {
+                    alert("Błąd płatności: " + (error.response?.data?.detail || "Serwer nie odpowiada"));
+                }
+            } finally {
+                isPaymentLoading.value = false;
+            }
+        };
+
+        const _saveBookingToStorage = (paymentResult) => {
+            const existing = JSON.parse(localStorage.getItem('myBookings') || '[]');
+            existing.unshift({
+                id_rezerwacji:       reservationData.id_rezerwacji,
+                id_platnosci:        paymentResult.id_platnosci,
+                numer_lotu:          currentFlight.value?.numer_lotu  || '—',
+                seat:                selectedSeat.value?.numer_miejsca || '—',
+                klasa:               selectedSeat.value?.klasa         || '—',
+                pasazer:             `${passenger.imie} ${passenger.nazwisko}`,
+                kwota:               paymentResult.kwota,
+                status:              paymentResult.status_transakcji,
+                metoda:              paymentResult.metoda,
+                identyfikator_sesji: paymentResult.identyfikator_sesji,
+                czas_odlotu:         currentFlight.value?.czas_odlotu  || null,
+                data_zakupu:         new Date().toISOString()
+            });
+            localStorage.setItem('myBookings', JSON.stringify(existing));
+        };
+
+        // ── RESETOWANIE WIDOKU ───────────────────────────────────────────────
         const resetView = () => {
-            activeFlightId.value = null;
-            selectedSeat.value = null;
-            seats.value = [];
-            passenger.imie = '';
-            passenger.nazwisko = '';
+            currentView.value         = 'search';
+            activeFlightId.value      = null;
+            currentFlight.value       = null;
+            selectedSeat.value        = null;
+            seats.value               = [];
+            passenger.imie            = '';
+            passenger.nazwisko        = '';
+            reservationData.id_rezerwacji = null;
+            reservationData.kwota     = 0;
+            cardDetails.number        = '';
+            cardDetails.expiry        = '';
+            cardDetails.cvc           = '';
+            cardDetails.name          = '';
+            blikCode.value            = '';
+            hoverSeat.value           = null;
         };
 
+        // ── STYLE MIEJSC (inline, niezależne od Tailwind) ────────────────────
         const selectSeat = (seat) => { if (seat.czy_wolne) selectedSeat.value = seat; };
-        const getSeatClass = (seat) => {
-            if (selectedSeat.value?.id_miejsca === seat.id_miejsca) return 'seat-selected';
-            return seat.czy_wolne ? 'seat-available' : 'seat-occupied';
+
+        const getSeatStyle = (seat) => {
+            const isSelected = selectedSeat.value?.id_miejsca === seat.id_miejsca;
+            const isHov      = hoverSeat.value === seat.id_miejsca && seat.czy_wolne;
+            const isBusiness = seat.klasa === 'Business';
+
+            if (isSelected) return {
+                backgroundColor: '#2563eb', borderColor: '#1d4ed8',
+                color: '#fff', transform: 'scale(1.12)',
+                boxShadow: '0 0 22px rgba(37,99,235,0.50)', cursor: 'pointer'
+            };
+            if (!seat.czy_wolne) return {
+                backgroundColor: '#f1f5f9', borderColor: '#e2e8f0',
+                color: '#cbd5e1', textDecoration: 'line-through', cursor: 'not-allowed'
+            };
+            if (isBusiness) return {
+                backgroundColor: isHov ? '#fffbeb' : '#fff',
+                borderColor:     isHov ? '#f59e0b' : '#fde68a',
+                color:           isHov ? '#92400e' : '#b45309',
+                transform:       isHov ? 'scale(1.1)' : 'scale(1)',
+                boxShadow:       isHov ? '0 8px 18px rgba(245,158,11,0.25)' : 'none',
+                cursor: 'pointer', transition: 'all 0.15s ease'
+            };
+            return {
+                backgroundColor: isHov ? '#eff6ff' : '#fff',
+                borderColor:     isHov ? '#3b82f6' : '#e2e8f0',
+                color:           isHov ? '#2563eb' : '#64748b',
+                transform:       isHov ? 'scale(1.1)' : 'scale(1)',
+                boxShadow:       isHov ? '0 8px 18px rgba(59,130,246,0.20)' : 'none',
+                cursor: 'pointer', transition: 'all 0.15s ease'
+            };
         };
 
-        const formatTime = (d) => new Date(d).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        // ── FORMATOWANIE ─────────────────────────────────────────────────────
+        const formatTime  = (d) => new Date(d).toLocaleString('pl-PL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
         const formatPrice = (p) => parseFloat(p).toLocaleString('pl-PL', { minimumFractionDigits: 2 });
+        const formatDate  = (d) => d ? new Date(d).toLocaleDateString('pl-PL') : '—';
 
         return {
             isLoggedIn, userEmail, logout,
+            currentView, resetView,
             searchForm, searchFlights, flights, hasSearched, isLoading,
-            activeFlightId, startBooking, resetView,
-            seats, selectSeat, getSeatClass, selectedSeat,
-            passenger, submitBooking, isBookingLoading, groupedSeats,
-            formatTime, formatPrice
+            activeFlightId, currentFlight, startBooking,
+            seats, selectSeat, getSeatStyle, selectedSeat, hoverSeat, groupedSeats,
+            passenger, submitBooking, isBookingLoading,
+            reservationData,
+            paymentMethod, cardDetails, blikCode,
+            isPaymentLoading, processPayment, onCardNumberInput, onExpiryInput,
+            successData,
+            formatTime, formatPrice, formatDate
         };
     }
 }).mount('#app');
