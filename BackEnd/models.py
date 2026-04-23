@@ -84,7 +84,7 @@ class Bilet(Base):
     id_miejsca = Column(Integer, ForeignKey("miejsca.id_miejsca", ondelete="RESTRICT"), unique=True, nullable=False)
     imie_pasazera = Column(String(50), nullable=False)
     nazwisko_pasazera = Column(String(50), nullable=False)
-    dane_paszportowe = Column(LargeBinary)
+    #dane_paszportowe = Column(LargeBinary) --- Убрано, так как паспортные данные больше не требуются для бронирования
 
     rezerwacja = relationship("Rezerwacja", back_populates="bilety")
     miejsce = relationship("Miejsce", back_populates="bilet")
