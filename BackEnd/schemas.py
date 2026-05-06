@@ -84,3 +84,29 @@ class PaymentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class FlightCreate(BaseModel):
+    """Schema używana przez Admina do tworzenia nowego lotu."""
+    numer_lotu: str
+    id_lotniska_odlotu: int
+    id_lotniska_przylotu: int
+    czas_odlotu: datetime
+    czas_przylotu: datetime
+    cena: Decimal
+    liczba_miejsc: int
+    status: Optional[str] = "Zaplanowany"
+
+
+class FlightUpdate(BaseModel):
+    """
+    Schema do częściowej aktualizacji lotu (Admin only).
+    Wszystkie pola są opcjonalne — przesyłaj tylko te, które chcesz zmienić.
+    """
+    numer_lotu: Optional[str] = None
+    id_lotniska_odlotu: Optional[int] = None
+    id_lotniska_przylotu: Optional[int] = None
+    czas_odlotu: Optional[datetime] = None
+    czas_przylotu: Optional[datetime] = None
+    cena: Optional[Decimal] = None
+    liczba_miejsc: Optional[int] = None
+    status: Optional[str] = None  # Zaplanowany | W trakcie | Zakończony | Odwołany
