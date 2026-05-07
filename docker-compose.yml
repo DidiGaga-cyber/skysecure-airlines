@@ -10,7 +10,7 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./DataBase:/docker-entrypoint-initdb.d:ro  
+      - ./DataBase:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U skysecure_user -d skysecure_db"]
@@ -33,13 +33,27 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # -------------------------------------------------------
+  # WAF + Reverse Proxy
+  # Образ owasp/modsecurity-crs:nginx-alpine содержит:
+  #   • Nginx
+  #   • ModSecurity v3 (libmodsecurity)
+  #   • OWASP Core Rule Set (CRS) — набор правил WAF
+  # -------------------------------------------------------
   proxy:
-    image: nginx:alpine
+    image: owasp/modsecurity-crs:nginx-alpine
     container_name: skysecure_proxy
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      - MODSEC_RULE_ENGINE=On
+      - PARANOIA=1
+      - ANOMALY_INBOUND=5
+      - ANOMALY_OUTBOUND=4
     volumes:
-      - ./Nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Nginx/nginx.conf:/etc/nginx/conf.d/skysecure.conf:ro
+      - ./Nginx/certs:/etc/nginx/certs:ro
       - ./FrontEnd:/usr/share/nginx/html:ro
     depends_on:
       - backend

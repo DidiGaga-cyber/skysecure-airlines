@@ -11,21 +11,31 @@ from payments import router as payments_router
 # Сначала БД
 models.Base.metadata.create_all(bind=engine)
 
-# Создаем приложение (добавляем root_path, чтобы Swagger не терялся за Nginx)
+# Создаем приложение (root_path нужен, чтобы Swagger не терялся за Nginx)
 app = FastAPI(title="SkySecure Airlines API", root_path="/api")
+
+# -------------------------------------------------------
+# CORS — разрешаем только наш фронтенд (не "*")
+# При деплое замените localhost на реальный домен
+# -------------------------------------------------------
+origins = [
+    "https://localhost",
+    "https://127.0.0.1",
+    "http://localhost",       #  для dev-режима
+    "http://127.0.0.1",       #  для dev-режима
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Подключаем авторизацию ОДИН РАЗ (префикс уже есть внутри auth.py)
+# Подключаем роутеры
 app.include_router(auth_router)
 
-# Базовый роутер для проверок
 api_router = APIRouter()
 
 @api_router.get("/health", tags=["system"])

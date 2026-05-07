@@ -1,4 +1,4 @@
-export const API_URL = 'http://127.0.0.1/api';
+export const API_URL = 'https://localhost/api';
 
 export const getAuthToken = () => localStorage.getItem('token');export const getUserEmail    = () => localStorage.getItem('userEmail');
 
