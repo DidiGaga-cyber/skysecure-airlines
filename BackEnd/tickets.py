@@ -100,8 +100,12 @@ def create_ticket(
     db.add(audit_log)
 
     db.commit()
-    
-    return {"status": "success", "message": "Bilet wygenerowany"}
+    db.refresh(new_ticket)
+    return{
+        "status": "success",
+        "message": "Bilet wygenerowany",
+        "id_bileta": new_ticket.id_biletu 
+    }
 
 @router.get("/{id_bileta}/pdf")
 def get_ticket_pdf(
@@ -119,7 +123,7 @@ def get_ticket_pdf(
         models.Flight.id_lotniska_przylotu.label("destination")
     ).join(models.Miejsce, models.Bilet.id_miejsca == models.Miejsce.id_miejsca)\
      .join(models.Flight, models.Miejsce.id_lotu == models.Flight.id_lotu)\
-     .filter(models.Bilet.id_bileta == id_bileta).first()
+     .filter(models.Bilet.id_biletu == id_bileta).first()
 
     if not ticket_data:
         raise HTTPException(status_code=404, detail="Bilet nie znaleziony")
@@ -135,8 +139,7 @@ def get_ticket_pdf(
     qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
     # 3. Рендерим HTML через Jinja2
-    with open("ticket_template.html", "r") as f:
-        template = Template(f.read())
+    template = Template(TICKET_HTML_TEMPLATE)
     
     html_out = template.render(
         origin=ticket_data.origin,

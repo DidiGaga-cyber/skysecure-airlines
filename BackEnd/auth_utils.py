@@ -3,7 +3,7 @@ import jwt
 from datetime import datetime, timedelta
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-SECRET_KEY = "SUPER_SECRET_KEY_FOR_SKYSECURE" # W produkcji trzymaj to w .env!
+SECRET_KEY = "SUPER_SECRET_KEY_FOR_SKYSECURE"
 ALGORITHM = "HS256"
 
 def hash_password(password: str):
