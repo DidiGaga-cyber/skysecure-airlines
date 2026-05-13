@@ -1,4 +1,7 @@
-import { API_URL, getAuthToken, clearSession } from './state.js';
+
+import { API_URL, getAuthToken, getUserRole, clearSession } from './state.js';
+
+
 const { createApp, ref, onMounted } = Vue;
 
 // Axios Interceptor dla JWT [cite: 122]
@@ -32,6 +35,11 @@ createApp({
 
         const checkAuth = () => {
             if (!getAuthToken()) {
+                window.location.href = 'login.html';
+                return;
+            }
+            if (getUserRole() !== 'Admin') {
+                alert('Brak uprawnień. Ta strona jest tylko dla administratorów.');
                 window.location.href = 'login.html';
             }
         };
