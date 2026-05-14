@@ -112,9 +112,14 @@
 <!-- 📸 SCREENSHOT: Ekran płatności i ekran sukcesu -->
 <img width="1895" height="1051" alt="image" src="https://github.com/user-attachments/assets/c5735c32-12a2-4043-a52a-095a20f06df7" />
 <img width="1917" height="1012" alt="image" src="https://github.com/user-attachments/assets/10e26ad0-d215-4129-927f-0ee6fbe88482" />
+<img width="1915" height="1046" alt="image" src="https://github.com/user-attachments/assets/2809d9e6-59e0-4d38-a76b-5c8649c31f6e" />
+<img width="1919" height="1045" alt="image" src="https://github.com/user-attachments/assets/b0c0a5ce-f824-4f25-a057-4466729e5652" />
 
 
 > *(Zrzut ekranu formularza płatności i potwierdzenia zakupu)*
+<img width="785" height="493" alt="image" src="https://github.com/user-attachments/assets/7a9ad4ee-eaa4-43ee-b92f-55e5d3d33b27" />
+> *(Zrzut PDF biletu)*
+
 
 <!-- 📸 SCREENSHOT: Panel Administratora (Dark Mode) -->
 <img width="1915" height="1058" alt="image" src="https://github.com/user-attachments/assets/85ae31dd-2d79-4daf-9291-d8c771ce4eb9" />
