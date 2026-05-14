@@ -70,6 +70,40 @@ def get_flight_seats(id_lotu: int, db: Session = Depends(get_db)):
     return seats
 
 
+
+# ---------------------------------------------------------------------------
+# Helper: generate seats for a flight
+# ---------------------------------------------------------------------------
+
+def generate_seats(flight_id: int, liczba_miejsc: int, db: Session) -> None:
+    """
+    Automatycznie generuje miejsca dla lotu wedlug liczby_miejsc.
+    Rzedy 1-2 to Business (A-F), reszta to Economy.
+    """
+    COLUMNS = ["A", "B", "C", "D", "E", "F"]
+    seats_per_row = len(COLUMNS)
+    total_rows = -(-liczba_miejsc // seats_per_row)  # ceiling division
+    BUSINESS_ROWS = 2
+
+    seats_to_insert = []
+    count = 0
+    for row in range(1, total_rows + 1):
+        for col in COLUMNS:
+            if count >= liczba_miejsc:
+                break
+            klasa = "Business" if row <= BUSINESS_ROWS else "Economy"
+            seats_to_insert.append(
+                models.Miejsce(
+                    id_lotu=flight_id,
+                    numer_miejsca=f"{row}{col}",
+                    klasa=klasa,
+                    czy_wolne=True,
+                )
+            )
+            count += 1
+
+    db.bulk_save_objects(seats_to_insert)
+
 # ---------------------------------------------------------------------------
 # Helper: enforce Admin role
 # ---------------------------------------------------------------------------
@@ -114,6 +148,11 @@ def create_flight(
 
     new_flight = models.Flight(**flight_data.model_dump())
     db.add(new_flight)
+    db.flush()  # get new_flight.id_lotu without full commit
+
+    # Generate seats based on liczba_miejsc
+    generate_seats(new_flight.id_lotu, flight_data.liczba_miejsc, db)
+
     db.commit()
     db.refresh(new_flight)
     return new_flight
@@ -148,6 +187,30 @@ def update_flight(
     new_przylot = update_dict.get("czas_przylotu", flight.czas_przylotu)
     if new_przylot <= new_odlot:
         raise HTTPException(status_code=400, detail="Czas przylotu musi być późniejszy niż czas odlotu.")
+
+    # If liczba_miejsc changed — delete all FREE seats and regenerate
+    if "liczba_miejsc" in update_dict:
+        new_count = update_dict["liczba_miejsc"]
+        occupied = db.query(models.Miejsce).filter(
+            models.Miejsce.id_lotu == id_lotu,
+            models.Miejsce.czy_wolne == False
+        ).count()
+        if new_count < occupied:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Nie można zmniejszyć liczby miejsc poniżej {occupied} (zajętych)."
+            )
+        # Delete all free seats — occupied stay (ON DELETE RESTRICT protects them)
+        db.query(models.Miejsce).filter(
+            models.Miejsce.id_lotu == id_lotu,
+            models.Miejsce.czy_wolne == True
+        ).delete(synchronize_session=False)
+        db.flush()
+        # Regenerate all seats from scratch if no occupied seats, else just add
+        remaining = db.query(models.Miejsce).filter(models.Miejsce.id_lotu == id_lotu).count()
+        seats_to_add = new_count - remaining
+        if seats_to_add > 0:
+            generate_seats(id_lotu, seats_to_add, db)
 
     for field, value in update_dict.items():
         setattr(flight, field, value)
