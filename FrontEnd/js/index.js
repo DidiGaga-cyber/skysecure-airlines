@@ -1,4 +1,5 @@
 import { API_URL, getAuthToken, getUserEmail, clearSession } from './state.js';
+import { showToast } from './notify.js';
 const { createApp, ref, reactive, computed } = Vue;
 
 // ── AXIOS INTERCEPTOR ────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ createApp({
 
         const startBooking = async (id) => {
             if (!isLoggedIn.value) {
-                alert("Musisz się zalogować!");
+                showToast("Musisz się zalogować!");
                 window.location.href = 'login.html';
                 return;
             }
@@ -82,7 +83,7 @@ createApp({
                 const response = await axios.get(`${API_URL}/flights/${id}/seats`);
                 seats.value = response.data;
             } catch (error) {
-                alert("Nie udało się załadować mapy miejsc.");
+                showToast("Nie udało się załadować mapy miejsc.");
             }
         };
 
@@ -92,12 +93,12 @@ createApp({
         const submitBooking = async () => {
             const token = getAuthToken();
             if (!token) {
-                alert("Błąd autoryzacji: Brak tokena. Zaloguj się ponownie.");
+                showToast("Błąd autoryzacji: Brak tokena. Zaloguj się ponownie.");
                 window.location.href = 'login.html';
                 return;
             }
             if (!passenger.imie || !passenger.nazwisko || !selectedSeat.value) {
-                alert("Wypełnij wszystkie pola i wybierz miejsce!");
+                showToast("Wypełnij wszystkie pola i wybierz miejsce!", 'warning');
                 return;
             }
             isBookingLoading.value = true;
@@ -122,10 +123,10 @@ createApp({
                 currentView.value = 'payment';
             } catch (error) {
                 if (error.response?.status === 401) {
-                    alert("Sesja wygasła. Zaloguj się ponownie.");
+                    showToast("Sesja wygasła. Zaloguj się ponownie.");
                     logout();
                 } else {
-                    alert("Błąd: " + (error.response?.data?.detail || "Serwer nie odpowiada"));
+                    showToast("Błąd: " + (error.response?.data?.detail || "Serwer nie odpowiada"));
                 }
             } finally {
                 isBookingLoading.value = false;
@@ -155,13 +156,13 @@ createApp({
         const processPayment = async () => {
             if (paymentMethod.value === 'Karta') {
                 if (!cardDetails.number || !cardDetails.expiry || !cardDetails.cvc || !cardDetails.name) {
-                    alert("Wypełnij wszystkie dane karty!");
+                    showToast("Wypełnij wszystkie dane karty!", "warning");
                     return;
                 }
             }
             if (paymentMethod.value === 'BLIK') {
                 if (blikCode.value.replace(/\D/g,'').length !== 6) {
-                    alert("Wprowadź poprawny 6-cyfrowy kod BLIK!");
+                    showToast("Wprowadź poprawny 6-cyfrowy kod BLIK!", "warning");
                     return;
                 }
             }
@@ -181,10 +182,10 @@ createApp({
                 currentView.value = 'success';
             } catch (error) {
                 if (error.response?.status === 401) {
-                    alert("Sesja wygasła. Zaloguj się ponownie.");
+                    showToast("Sesja wygasła. Zaloguj się ponownie.");
                     logout();
                 } else {
-                    alert("Błąd płatności: " + (error.response?.data?.detail || "Serwer nie odpowiada"));
+                    showToast("Błąd płatności: " + (error.response?.data?.detail || "Serwer nie odpowiada"));
                 }
             } finally {
                 isPaymentLoading.value = false;

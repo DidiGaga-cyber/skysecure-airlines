@@ -1,4 +1,5 @@
 import { API_URL, setSession } from './state.js';
+import { showToast } from './notify.js';
 
 const { createApp, ref } = Vue;
 
@@ -26,10 +27,10 @@ createApp({
                     localStorage.setItem('userName',    form.value.imie    || 'Pasażer');
                     localStorage.setItem('userSurname', form.value.nazwisko || '');
 
-                    alert("Rejestracja udana! Możesz się teraz zalogować.");
+                    showToast("Rejestracja udana! Możesz się teraz zalogować.", 'success');
                     isRegisterMode.value = false;
                 } catch (e) {
-                    alert("Błąd rejestracji:\n" + JSON.stringify(e.response?.data?.detail || e.message, null, 2));
+                    showToast("Błąd rejestracji: " + JSON.stringify(e.response?.data?.detail || e.message, null, 2));
                 }
 
             } else {
@@ -63,7 +64,7 @@ createApp({
                     }
 
                 } catch (e) {
-                    alert("Błąd logowania:\n" + JSON.stringify(e.response?.data?.detail || e.message, null, 2));
+                    showToast("Błąd logowania: " + JSON.stringify(e.response?.data?.detail || e.message, null, 2));
                 }
             }
         };

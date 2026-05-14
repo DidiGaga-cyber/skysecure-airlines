@@ -1,5 +1,6 @@
 
 import { API_URL, getAuthToken, getUserRole, clearSession } from './state.js';
+import { showToast, showConfirm } from './notify.js';
 
 
 const { createApp, ref, onMounted } = Vue;
@@ -39,7 +40,7 @@ createApp({
                 return;
             }
             if (getUserRole() !== 'Admin') {
-                alert('Brak uprawnień. Ta strona jest tylko dla administratorów.');
+                showToast('Brak uprawnień. Ta strona jest tylko dla administratorów.');
                 window.location.href = 'login.html';
             }
         };
@@ -100,30 +101,32 @@ createApp({
                 loadFlights(); // Odśwież widok tabeli po udanej akcji
             } catch (error) {
                 if (error.response?.status === 403) {
-                    alert("Brak uprawnień. Zaloguj się jako Admin.");
+                    showToast("Brak uprawnień. Zaloguj się jako Admin.");
                 } else if (error.response?.status === 409 || error.response?.status === 404 || error.response?.status === 400) {
-                    alert("Błąd: " + error.response.data.detail);
+                    showToast("Błąd: " + error.response.data.detail);
                 } else {
-                    alert("Wystąpił błąd podczas zapisywania lotu.");
+                    showToast("Wystąpił błąd podczas zapisywania lotu.");
                 }
             }
         };
 
         const deleteFlight = async (id_lotu) => {
-            if (!confirm("OSTRZEŻENIE: Czy na pewno chcesz usunąć ten lot? Spowoduje to usunięcie powiązanych miejsc i rezerwacji (CASCADE)[cite: 31].")) {
-                return;
-            }
+            const confirmed = await showConfirm(
+                "OSTRZEŻENIE: Czy na pewno chcesz usunąć ten lot? Spowoduje to usunięcie powiązanych miejsc i rezerwacji (CASCADE).",
+                { confirmLabel: 'Usuń lot', cancelLabel: 'Anuluj', danger: true }
+            );
+            if (!confirmed) return;
 
             try {
                 await axios.delete(`${API_URL}/flights/${id_lotu}`);
                 loadFlights();
             } catch (error) {
                 if (error.response?.status === 403) {
-                    alert("Błąd: Brak uprawnień! Tylko konto z rolą Admin może usuwać loty[cite: 31, 32].");
+                    showToast("Błąd: Brak uprawnień! Tylko konto z rolą Admin może usuwać loty.");
                 } else if (error.response?.status === 409) {
-                    alert("Błąd: " + error.response.data.detail);
+                    showToast("Błąd: " + error.response.data.detail);
                 } else {
-                    alert("Błąd serwera przy usuwaniu lotu.");
+                    showToast("Błąd serwera przy usuwaniu lotu.");
                 }
             }
         };
