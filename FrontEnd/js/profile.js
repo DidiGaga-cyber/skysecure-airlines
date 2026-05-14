@@ -6,7 +6,9 @@ createApp({
             userName:    '',
             userSurname: '',
             userEmail:   '',
-            bookings:    []
+            bookings:    [],
+            // Stan pobierania PDF per rezerwacja: { [id_bileta]: 'idle'|'loading'|'error' }
+            pdfStates:   {}
         };
     },
     computed: {
@@ -74,6 +76,43 @@ createApp({
                 'ApplePay': ''
             };
             return map[metoda] || '💰';
+        },
+        async downloadTicketPdf(booking) {
+            const id = booking.id_bileta;
+            if (!id) {
+                this.pdfStates = { ...this.pdfStates, [booking.id_rezerwacji]: 'error' };
+                return;
+            }
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            const key = id;
+            this.pdfStates = { ...this.pdfStates, [key]: 'loading' };
+            try {
+                const res = await fetch(`https://localhost/api/tickets/${id}/pdf`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    throw new Error(res.status === 401
+                        ? 'Brak autoryzacji'
+                        : `Błąd ${res.status}`);
+                }
+                const blob = await res.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href     = url;
+                a.download = `ticket_${id}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.pdfStates = { ...this.pdfStates, [key]: 'idle' };
+            } catch (err) {
+                this.pdfStates = { ...this.pdfStates, [key]: 'error' };
+                console.error('PDF download error:', err);
+            }
         }
     }
 }).mount('#app');

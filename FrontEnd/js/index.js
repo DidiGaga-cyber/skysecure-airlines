@@ -201,6 +201,7 @@ createApp({
             existing.unshift({
                 id_rezerwacji:       reservationData.id_rezerwacji,
                 id_platnosci:        paymentResult.id_platnosci,
+                id_bileta:           ticketId.value,
                 numer_lotu:          currentFlight.value?.numer_lotu  || '—',
                 seat:                selectedSeat.value?.numer_miejsca || '—',
                 klasa:               selectedSeat.value?.klasa         || '—',

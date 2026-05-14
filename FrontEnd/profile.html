@@ -146,15 +146,38 @@
                                 </div>
                             </div>
 
-                            <!-- Prawa strona: kwota i metoda -->
-                            <div class="text-right shrink-0">
+                            <!-- Prawa strona: kwota, metoda i PDF -->
+                            <div class="text-right shrink-0 flex flex-col items-end gap-2">
                                 <p class="text-2xl font-black text-slate-800">{{ formatPrice(booking.kwota) }} PLN</p>
-                                <p class="text-xs text-slate-400 font-semibold mt-1">
+                                <p class="text-xs text-slate-400 font-semibold">
                                     {{ getMethodIcon(booking.metoda) }} {{ booking.metoda }}
                                 </p>
-                                <p class="text-[10px] text-slate-300 font-mono mt-1">
+                                <p class="text-[10px] text-slate-300 font-mono">
                                     #{{ booking.id_rezerwacji }}
                                 </p>
+
+                                <!-- Przycisk pobierania PDF -->
+                                <template v-if="booking.id_bileta">
+                                    <button @click="downloadTicketPdf(booking)"
+                                            :disabled="pdfStates[booking.id_bileta] === 'loading'"
+                                            class="mt-1 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-black rounded-xl hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm shadow-blue-200">
+                                        <svg v-if="pdfStates[booking.id_bileta] === 'loading'"
+                                             class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                    stroke="currentColor" stroke-width="4"/>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                        </svg>
+                                        <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                        </svg>
+                                        <span>{{ pdfStates[booking.id_bileta] === 'loading' ? 'Pobieranie...' : 'Pobierz PDF' }}</span>
+                                    </button>
+                                    <p v-if="pdfStates[booking.id_bileta] === 'error'"
+                                       class="text-[10px] text-red-500 font-semibold">
+                                        Błąd pobierania — spróbuj ponownie
+                                    </p>
+                                </template>
                             </div>
                         </div>
                     </div>
