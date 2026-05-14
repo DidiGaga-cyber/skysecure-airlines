@@ -90,6 +90,9 @@ createApp({
         // Dane rezerwacji przekazywane do ekranu płatności
         const reservationData = reactive({ id_rezerwacji: null, kwota: 0 });
 
+        // ID biletu zwracane przez POST /tickets/ – potrzebne do pobrania PDF
+        const ticketId = ref(null);
+
         const submitBooking = async () => {
             const token = getAuthToken();
             if (!token) {
@@ -109,13 +112,14 @@ createApp({
                 });
                 const id_rezerwacji = resBooking.data.id_rezerwacji;
 
-                // Krok 2: Utwórz bilet
-                await axios.post(`${API_URL}/tickets/`, {
+                // Krok 2: Utwórz bilet – zapisz id_bileta do stanu
+                const resTicket = await axios.post(`${API_URL}/tickets/`, {
                     id_rezerwacji,
                     id_miejsca: selectedSeat.value.id_miejsca,
                     imie:       passenger.imie,
                     nazwisko:   passenger.nazwisko
                 });
+                ticketId.value = resTicket.data.id_bileta ?? null;
 
                 // Przejście do ekranu płatności
                 reservationData.id_rezerwacji = id_rezerwacji;
@@ -211,7 +215,50 @@ createApp({
             localStorage.setItem('myBookings', JSON.stringify(existing));
         };
 
-        // ── RESETOWANIE WIDOKU ───────────────────────────────────────────────
+        // ── POBIERANIE PDF BILETU ─────────────────────────────────────────────
+        const isPdfLoading  = ref(false);
+        const pdfError      = ref('');
+
+        const downloadTicketPdf = async () => {
+            if (!ticketId.value) {
+                pdfError.value = 'Brak identyfikatora biletu.';
+                return;
+            }
+            const token = getAuthToken();
+            if (!token) {
+                showToast("Sesja wygasła. Zaloguj się ponownie.");
+                logout();
+                return;
+            }
+            isPdfLoading.value = true;
+            pdfError.value     = '';
+            try {
+                const res = await fetch(`${API_URL}/tickets/${ticketId.value}/pdf`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    const msg = res.status === 401
+                        ? 'Brak autoryzacji – zaloguj się ponownie.'
+                        : `Nie udało się pobrać PDF (błąd ${res.status}).`;
+                    throw new Error(msg);
+                }
+                const blob = await res.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href     = url;
+                a.download = `ticket_${ticketId.value}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                pdfError.value = err.message || 'Wystąpił błąd podczas pobierania biletu.';
+            } finally {
+                isPdfLoading.value = false;
+            }
+        };
+
+
         const resetView = () => {
             currentView.value         = 'search';
             activeFlightId.value      = null;
@@ -228,6 +275,9 @@ createApp({
             cardDetails.name          = '';
             blikCode.value            = '';
             hoverSeat.value           = null;
+            ticketId.value            = null;
+            isPdfLoading.value        = false;
+            pdfError.value            = '';
         };
 
         // ── STYLE MIEJSC (inline, niezależne od Tailwind) ────────────────────
@@ -281,6 +331,7 @@ createApp({
             paymentMethod, cardDetails, blikCode,
             isPaymentLoading, processPayment, onCardNumberInput, onExpiryInput,
             successData,
+            ticketId, isPdfLoading, pdfError, downloadTicketPdf,
             formatTime, formatPrice, formatDate
         };
     }
