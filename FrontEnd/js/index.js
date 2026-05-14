@@ -25,6 +25,18 @@ createApp({
         const hasSearched = ref(false);
         const isLoading   = ref(false);
 
+        // Кэш аэропортов: { [id]: объект аэропорта }
+        const airportCache = {};
+        const fetchAirport = async (id) => {
+            if (!id) return null;
+            if (airportCache[id]) return airportCache[id];
+            try {
+                const res = await axios.get(`${API_URL}/flights/airports/${id}`);
+                airportCache[id] = res.data;
+                return res.data;
+            } catch { return null; }
+        };
+
         const searchFlights = async () => {
             isLoading.value   = true;
             hasSearched.value = true;
@@ -34,7 +46,18 @@ createApp({
                 if (searchForm.to)   params.to   = searchForm.to;
                 if (searchForm.date) params.date  = searchForm.date;
                 const response = await axios.get(`${API_URL}/flights/`, { params });
-                flights.value = response.data;
+                const rawFlights = response.data;
+
+                // Загружаем все уникальные аэропорты параллельно
+                const uniqueIds = [...new Set(rawFlights.flatMap(f => [f.id_lotniska_odlotu, f.id_lotniska_przylotu]).filter(Boolean))];
+                await Promise.all(uniqueIds.map(fetchAirport));
+
+                // Обогащаем каждый рейс данными аэропортов
+                flights.value = rawFlights.map(f => ({
+                    ...f,
+                    lotnisko_skad:  airportCache[f.id_lotniska_odlotu]  || null,
+                    lotnisko_dokad: airportCache[f.id_lotniska_przylotu] || null,
+                }));
             } catch (error) {
                 console.error("Błąd wyszukiwania:", error);
             } finally {

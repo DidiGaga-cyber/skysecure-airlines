@@ -243,3 +243,25 @@ def delete_flight(
 
     db.delete(flight)
     db.commit()
+
+# ---------------------------------------------------------------------------
+# Airport lookup endpoint
+# ---------------------------------------------------------------------------
+ 
+@router.get("/airports/{id_lotniska}", tags=["airports"])
+def get_airport(id_lotniska: int, db: Session = Depends(get_db)):
+    """
+    Zwraca dane lotniska po jego ID.
+    Dostępne dla wszystkich użytkowników (bez tokena).
+    """
+    airport = db.query(models.Airport).filter(models.Airport.id_lotniska == id_lotniska).first()
+    if not airport:
+        raise HTTPException(status_code=404, detail=f"Lotnisko o ID={id_lotniska} nie istnieje.")
+    return {
+        "id_lotniska": airport.id_lotniska,
+        "kod_iata":    airport.kod_iata,
+        "nazwa":       airport.nazwa,
+        "miasto":      airport.miasto,
+        "kraj":        airport.kraj,
+    }
+ 

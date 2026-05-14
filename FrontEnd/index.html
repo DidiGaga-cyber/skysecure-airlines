@@ -128,15 +128,28 @@
                          class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all flex flex-col md:flex-row justify-between items-center gap-4">
                         <div class="w-full md:w-auto">
                             <div class="flex items-center gap-3 flex-wrap">
-                                <span class="text-2xl font-black">{{ formatTime(flight.czas_odlotu) }}</span>
-                                <div class="flex items-center gap-1 text-slate-300">
-                                    <div class="w-8 h-px bg-slate-200"></div>
-                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                    </svg>
-                                    <div class="w-8 h-px bg-slate-200"></div>
+                                <!-- Odlot -->
+                                <div class="text-left">
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Skąd</p>
+                                    <p class="text-2xl font-black leading-none">{{ formatTime(flight.czas_odlotu) }}</p>
+                                    <p class="text-sm font-bold text-slate-500 mt-0.5">{{ flight.lotnisko_skad ? flight.lotnisko_skad.miasto + ' (' + flight.lotnisko_skad.kod_iata + ')' : '—' }}</p>
                                 </div>
-                                <span class="text-xl font-bold text-slate-500">{{ formatTime(flight.czas_przylotu) }}</span>
+                                <!-- Strzałka -->
+                                <div class="flex flex-col items-center gap-1 px-2">
+                                    <div class="flex items-center gap-1 text-slate-300">
+                                        <div class="w-8 h-px bg-slate-200"></div>
+                                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                        </svg>
+                                        <div class="w-8 h-px bg-slate-200"></div>
+                                    </div>
+                                </div>
+                                <!-- Przylot -->
+                                <div class="text-left">
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Dokąd</p>
+                                    <p class="text-xl font-bold text-slate-600 leading-none">{{ formatTime(flight.czas_przylotu) }}</p>
+                                    <p class="text-sm font-bold text-slate-500 mt-0.5">{{ flight.lotnisko_dokad ? flight.lotnisko_dokad.miasto + ' (' + flight.lotnisko_dokad.kod_iata + ')' : '—' }}</p>
+                                </div>
                             </div>
                             <div class="mt-2 flex items-center gap-2 flex-wrap">
                                 <span class="text-xs font-black uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg text-slate-500">
@@ -187,7 +200,12 @@
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Wybrany lot</p>
                     <p class="text-2xl font-black">{{ currentFlight.numer_lotu }}</p>
-                    <p class="text-slate-400 text-sm font-semibold mt-1">
+                    <p class="text-white text-lg font-black mt-1">
+                        {{ currentFlight.lotnisko_skad ? currentFlight.lotnisko_skad.miasto + ' (' + currentFlight.lotnisko_skad.kod_iata + ')' : '—' }}
+                        <span class="text-blue-400 mx-1">→</span>
+                        {{ currentFlight.lotnisko_dokad ? currentFlight.lotnisko_dokad.miasto + ' (' + currentFlight.lotnisko_dokad.kod_iata + ')' : '—' }}
+                    </p>
+                    <p class="text-slate-400 text-sm font-semibold mt-0.5">
                         {{ formatTime(currentFlight.czas_odlotu) }} → {{ formatTime(currentFlight.czas_przylotu) }}
                     </p>
                 </div>
