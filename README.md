@@ -97,34 +97,13 @@
 
 ---
 
-## Demo i zrzuty ekranu
+## Autorzy/Zespół
 
-<!-- 📸 SCREENSHOT: Strona główna z wyszukiwarką lotów (Hero Section) -->
-<img width="1919" height="1060" alt="image" src="https://github.com/user-attachments/assets/ea9f3bfb-1f27-4de8-a84d-84ef1e130311" />
-
-> *(Zrzut ekranu strony głównej z wyszukiwarką)*
-
-<!-- 📸 SCREENSHOT: Interaktywna mapa miejsc w samolocie -->
-<img width="1898" height="1053" alt="image" src="https://github.com/user-attachments/assets/9b926aad-0630-4121-a093-edf552fd6d0f" />
-
-> *(Zrzut ekranu mapy miejsc z legendą kolorystyczną)*
-
-<!-- 📸 SCREENSHOT: Ekran płatności i ekran sukcesu -->
-<img width="1895" height="1051" alt="image" src="https://github.com/user-attachments/assets/c5735c32-12a2-4043-a52a-095a20f06df7" />
-<img width="1917" height="1012" alt="image" src="https://github.com/user-attachments/assets/10e26ad0-d215-4129-927f-0ee6fbe88482" />
-<img width="1915" height="1046" alt="image" src="https://github.com/user-attachments/assets/2809d9e6-59e0-4d38-a76b-5c8649c31f6e" />
-<img width="1919" height="1045" alt="image" src="https://github.com/user-attachments/assets/b0c0a5ce-f824-4f25-a057-4466729e5652" />
-
-
-> *(Zrzut ekranu formularza płatności i potwierdzenia zakupu)*
-<img width="785" height="493" alt="image" src="https://github.com/user-attachments/assets/7a9ad4ee-eaa4-43ee-b92f-55e5d3d33b27" />
-> *(Zrzut PDF biletu)*
-
-
-<!-- 📸 SCREENSHOT: Panel Administratora (Dark Mode) -->
-<img width="1915" height="1058" alt="image" src="https://github.com/user-attachments/assets/85ae31dd-2d79-4daf-9291-d8c771ce4eb9" />
-
-> *(Zrzut ekranu panelu admina w trybie ciemnym)*
+| Członek | Odpowiedzialność |
+|---|---|
+| **Valentyn** | DevOps, baza danych, infrastruktura, bezpieczeństwo |
+| **Dmitrii H.** | Backend (FastAPI), logika biznesowa, API |
+| **Dmytro D.** | Frontend (Vue 3), interfejs użytkownika |
 
 ---
 
@@ -140,6 +119,25 @@
 
 ---
 
+---
+
+## Funkcjonalności
+- rejestracja użytkownika
+- logowanie użytkownika
+- logowanie administratora
+- zarządzanie lotami(jako administrator)
+- dodanie nowych lotów (jako administrator)
+- wyszukiwanie lotów(jako użytkowniak)
+- tworzenie rezerwacji(jako użytkowniak)
+- wybór miejsc różnych klasów(Ekonom/Business)
+- wybor sposobu opłaty(Krata debtowa/BLIK/apple pay)
+- pobranie pliku pdf(jako użytkowniak)
+- wybor sposobu opłaty(Krata debtowa/BLIK/apple pay)
+
+
+
+---
+
 ## Struktura bazy danych
 
 System operuje na 6 powiązanych relacyjnie tabelach:
@@ -150,6 +148,14 @@ System operuje na 6 powiązanych relacyjnie tabelach:
 4. **Miejsca** — stan miejsca (wolne/zajęte), powiązanie z lotem
 5. **Rezerwacje** — status rezerwacji, powiązanie z użytkownikiem i lotem
 6. **Płatności** — dane transakcji, powiązanie z rezerwacją (dane paszportowe szyfrowane AES-256)
+
+
+---
+## Architektura
+Aplikacja jest zbudowana w architekturze klient–serwer.
+
+Frontend komunikuje się z backendem za pomocą REST API.
+Backend obsługuje logikę biznesową oraz komunikację z bazą danych.
 
 ---
 
@@ -198,9 +204,13 @@ https://localhost/api/docs
 
 ### Krok 5: Uruchomienie aplikacji klienckiej
 
-Otwórz folder `FrontEnd` i kliknij dwukrotnie plik `main.html` (otworzy się w przeglądarce).
+otwórz przeglądarkę internetową(najlepiej Chrome lub FireFox aktualnej wersji)
+
+przejdż na adres: https://localhost
 
 ### Krok 6: Logowanie testowe
+
+wybierz zakładkę logowanie
 
 Możesz zarejestrować nowego użytkownika lub skorzystać z gotowych kont:
 
@@ -211,10 +221,76 @@ Możesz zarejestrować nowego użytkownika lub skorzystać z gotowych kont:
 
 ---
 
-## Zespół
+## Struktura repozytorium
 
-| Członek | Odpowiedzialność |
-|---|---|
-| **Valentyn** | DevOps, baza danych, infrastruktura, bezpieczeństwo |
-| **Dmitrii H.** | Backend (FastAPI), logika biznesowa, API |
-| **Dmytro D.** | Frontend (Vue 3), interfejs użytkownika |
+frontend/ – interfejs użytkownika
+backend/ – logika aplikacji
+DataBase/ - baza danych z danymi przykładowymi
+Nginx/ - sieciwa część aplikacji
+dacker-compose.yml - łatwa instalacja i uruchomienie projektu
+
+---
+
+## API
+## auth
+POST /auth/register
+POST /auth/login
+
+## system
+GET /health
+
+## flights
+ GET /flights/
+ POST /flights/
+ GET /flights/{id_lotu}/seats
+ PUT /flights/{id_lotu}
+ DELETE /flights/{id_lotu}
+ 
+## airports 
+GET /flights/airports/{id_lotniska}
+
+## bookings
+POST /bookings/
+
+## tickets
+POST /bookings/
+GET /tickets/{id_bileta}/pdf
+
+## payments
+POST /payments/process
+
+---
+## Demo i zrzuty ekranu
+
+<!-- 📸 SCREENSHOT: Strona główna z wyszukiwarką lotów (Hero Section) -->
+<img width="1919" height="1060" alt="image" src="https://github.com/user-attachments/assets/ea9f3bfb-1f27-4de8-a84d-84ef1e130311" />
+
+> *(Zrzut ekranu strony głównej z wyszukiwarką)*
+
+<!-- 📸 SCREENSHOT: Interaktywna mapa miejsc w samolocie -->
+<img width="1898" height="1053" alt="image" src="https://github.com/user-attachments/assets/9b926aad-0630-4121-a093-edf552fd6d0f" />
+
+> *(Zrzut ekranu mapy miejsc z legendą kolorystyczną)*
+
+<!-- 📸 SCREENSHOT: Ekran płatności i ekran sukcesu -->
+<img width="1895" height="1051" alt="image" src="https://github.com/user-attachments/assets/c5735c32-12a2-4043-a52a-095a20f06df7" />
+<img width="1917" height="1012" alt="image" src="https://github.com/user-attachments/assets/10e26ad0-d215-4129-927f-0ee6fbe88482" />
+<img width="1915" height="1046" alt="image" src="https://github.com/user-attachments/assets/2809d9e6-59e0-4d38-a76b-5c8649c31f6e" />
+<img width="1919" height="1045" alt="image" src="https://github.com/user-attachments/assets/b0c0a5ce-f824-4f25-a057-4466729e5652" />
+
+
+> *(Zrzut ekranu formularza płatności i potwierdzenia zakupu)*
+<img width="785" height="493" alt="image" src="https://github.com/user-attachments/assets/7a9ad4ee-eaa4-43ee-b92f-55e5d3d33b27" />
+> *(Zrzut PDF biletu)*
+
+
+<!-- 📸 SCREENSHOT: Panel Administratora (Dark Mode) -->
+<img width="1915" height="1058" alt="image" src="https://github.com/user-attachments/assets/85ae31dd-2d79-4daf-9291-d8c771ce4eb9" />
+
+> *(Zrzut ekranu panelu admina w trybie ciemnym)*
+
+---
+
+---
+
+
