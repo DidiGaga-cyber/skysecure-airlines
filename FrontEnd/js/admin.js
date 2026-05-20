@@ -1,16 +1,12 @@
-
-import { API_URL, getAuthToken, getUserRole, clearSession } from './state.js';
+import { API_URL, getAuthToken, getUserRole, clearSession, setupAxiosInterceptors } from './state.js';
 import { showToast, showConfirm } from './notify.js';
 
 
 const { createApp, ref, onMounted } = Vue;
 
-// Axios Interceptor dla JWT [cite: 122]
-axios.interceptors.request.use(config => {
-    const token = getAuthToken();
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-}, error => Promise.reject(error));
+// Globalny interceptor JWT — obsługuje wygaśnięcie sesji i dodaje token do requestów.
+// Zastępuje poprzedni ręczny interceptor. Zdefiniowany raz tutaj, działa dla wszystkich stron.
+setupAxiosInterceptors();
 
 createApp({
     setup() {
@@ -30,7 +26,6 @@ createApp({
 
         const formatForInput = (isoString) => {
             if (!isoString) return '';
-            // Konwertuje datę na format akceptowany przez <input type="datetime-local">
             return new Date(isoString).toISOString().slice(0, 16);
         };
 
@@ -51,7 +46,10 @@ createApp({
                 const response = await axios.get(`${API_URL}/flights/`);
                 flights.value = response.data;
             } catch (error) {
-                console.error("Błąd pobierania lotów:", error);
+                // Błąd 401 jest już obsługiwany przez interceptor w state.js — nie duplikujemy logiki
+                if (!axios.isCancel(error)) {
+                    console.error("Błąd pobierania lotów:", error);
+                }
             } finally {
                 isLoading.value = false;
             }
@@ -82,7 +80,6 @@ createApp({
 
         const saveFlight = async () => {
             try {
-                // Przekształcamy typy danych zgodnie ze schematami Pydantic w backendzie
                 const payload = {
                     ...flightForm.value,
                     id_lotniska_odlotu: parseInt(flightForm.value.id_lotniska_odlotu),
@@ -98,13 +95,15 @@ createApp({
                 }
                 
                 showModal.value = false;
-                loadFlights(); // Odśwież widok tabeli po udanej akcji
+                loadFlights();
             } catch (error) {
+                if (axios.isCancel(error)) return; // wygaśnięcie tokenu — interceptor już obsłużył
                 if (error.response?.status === 403) {
                     showToast("Brak uprawnień. Zaloguj się jako Admin.");
                 } else if (error.response?.status === 409 || error.response?.status === 404 || error.response?.status === 400) {
                     showToast("Błąd: " + error.response.data.detail);
-                } else {
+                } else if (error.response?.status !== 401) {
+                    // 401 obsługuje interceptor, resztę obsługujemy tu
                     showToast("Wystąpił błąd podczas zapisywania lotu.");
                 }
             }
@@ -121,11 +120,12 @@ createApp({
                 await axios.delete(`${API_URL}/flights/${id_lotu}`);
                 loadFlights();
             } catch (error) {
+                if (axios.isCancel(error)) return;
                 if (error.response?.status === 403) {
                     showToast("Błąd: Brak uprawnień! Tylko konto z rolą Admin może usuwać loty.");
                 } else if (error.response?.status === 409) {
                     showToast("Błąd: " + error.response.data.detail);
-                } else {
+                } else if (error.response?.status !== 401) {
                     showToast("Błąd serwera przy usuwaniu lotu.");
                 }
             }
