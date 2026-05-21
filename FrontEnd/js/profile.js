@@ -1,3 +1,9 @@
+import { getAuthToken, isTokenExpired, clearSession, setupAxiosInterceptors, API_URL } from './state.js';
+import { showToast } from './notify.js';
+
+// Interceptor działa globalnie — obsługuje wygaśnięcie sesji dla fetch i axios
+setupAxiosInterceptors();
+
 const { createApp } = Vue;
 
 createApp({
@@ -7,7 +13,6 @@ createApp({
             userSurname: '',
             userEmail:   '',
             bookings:    [],
-            // Stan pobierania PDF per rezerwacja: { [id_bileta]: 'idle'|'loading'|'error' }
             pdfStates:   {}
         };
     },
@@ -15,21 +20,24 @@ createApp({
         userInitials() {
             return (this.userName.charAt(0) + this.userSurname.charAt(0)).toUpperCase();
         },
-        // Liczba zrealizowanych (opłaconych) lotów
         flightCount() {
             return this.bookings.filter(b => b.status === 'Success' || b.status === 'Opłacona').length;
         }
     },
     mounted() {
-        if (!localStorage.getItem('isLoggedIn')) {
-            window.location.href = 'login.html';
+        // Sprawdzamy token: czy istnieje i czy nie wygasł
+        const token = getAuthToken();
+        if (!token || isTokenExpired()) {
+            clearSession();
+            showToast('Sesja wygasła. Zaloguj się ponownie.', 'warning', 4000);
+            setTimeout(() => { window.location.href = 'login.html'; }, 1500);
             return;
         }
+
         this.userName    = localStorage.getItem('userName')    || 'Pasażer';
         this.userSurname = localStorage.getItem('userSurname') || '';
         this.userEmail   = localStorage.getItem('userEmail')   || 'brak@email.com';
 
-        // Wczytaj rezerwacje z localStorage (zapisywane przez index.js po udanej płatności)
         const raw = localStorage.getItem('myBookings');
         this.bookings = raw ? JSON.parse(raw) : [];
     },
@@ -38,7 +46,7 @@ createApp({
             window.location.href = 'index.html';
         },
         logout() {
-            localStorage.clear();
+            clearSession();
             window.location.href = 'index.html';
         },
         formatDate(isoStr) {
@@ -70,11 +78,7 @@ createApp({
             return map[status] || status;
         },
         getMethodIcon(metoda) {
-            const map = {
-                'Karta':    '💳',
-                'BLIK':     '📱',
-                'ApplePay': ''
-            };
+            const map = { 'Karta': '💳', 'BLIK': '📱', 'ApplePay': '' };
             return map[metoda] || '💰';
         },
         async downloadTicketPdf(booking) {
@@ -83,22 +87,35 @@ createApp({
                 this.pdfStates = { ...this.pdfStates, [booking.id_rezerwacji]: 'error' };
                 return;
             }
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = 'login.html';
+
+            // Sprawdzamy token przed fetch (fetch nie przechodzi przez axios interceptor)
+            const token = getAuthToken();
+            if (!token || isTokenExpired()) {
+                clearSession();
+                showToast('Sesja wygasła. Zaloguj się ponownie.', 'warning', 4000);
+                setTimeout(() => { window.location.href = 'login.html'; }, 1500);
                 return;
             }
+
             const key = id;
             this.pdfStates = { ...this.pdfStates, [key]: 'loading' };
             try {
-                const res = await fetch(`https://localhost/api/tickets/${id}/pdf`, {
+                const res = await fetch(`${API_URL}/tickets/${id}/pdf`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                if (!res.ok) {
-                    throw new Error(res.status === 401
-                        ? 'Brak autoryzacji'
-                        : `Błąd ${res.status}`);
+
+                if (res.status === 401) {
+                    // Token odrzucony przez serwer
+                    clearSession();
+                    showToast('Sesja wygasła. Zaloguj się ponownie.', 'warning', 4000);
+                    setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                    return;
                 }
+
+                if (!res.ok) {
+                    throw new Error(`Błąd ${res.status}`);
+                }
+
                 const blob = await res.blob();
                 const url  = URL.createObjectURL(blob);
                 const a    = document.createElement('a');
