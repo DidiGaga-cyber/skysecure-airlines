@@ -19,27 +19,59 @@ services:
       retries: 10
       start_period: 10s
 
-  backend:
+  # Брокер сообщений (Инфраструктура для SOA)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: skysecure_rabbitmq
+    ports:
+      - "5672:5672"   # Порт для микросервисов
+      - "15672:15672" # Панель управления UI (http://localhost:15672)
+    restart: unless-stopped
+
+  # Микросервис генерации PDF (Consumer)
+  pdf_worker:
+    build: ./PdfService
+    container_name: skysecure_pdf_worker
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./generated_pdfs:/app/pdfs
+    restart: unless-stopped
+
+  # Реплика API 1
+  backend-1:
     build: ./BackEnd
-    container_name: skysecure_backend
+    container_name: skysecure_backend_1
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "8001:8000" # Проброс только для тестов в обход Nginx
     volumes:
       - ./BackEnd:/app
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     restart: unless-stopped
 
-  # -------------------------------------------------------
-  # WAF + Reverse Proxy
-  # Образ owasp/modsecurity-crs:nginx-alpine содержит:
-  #   • Nginx
-  #   • ModSecurity v3 (libmodsecurity)
-  #   • OWASP Core Rule Set (CRS) — набор правил WAF
-  # -------------------------------------------------------
+  # Реплика API 2
+  backend-2:
+    build: ./BackEnd
+    container_name: skysecure_backend_2
+    env_file:
+      - .env
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./BackEnd:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    restart: unless-stopped
+
   proxy:
     image: owasp/modsecurity-crs:nginx-alpine
     container_name: skysecure_proxy
@@ -56,7 +88,8 @@ services:
       - ./Nginx/certs:/etc/nginx/certs:ro
       - ./FrontEnd:/usr/share/nginx/html:ro
     depends_on:
-      - backend
+      - backend-1
+      - backend-2
     restart: unless-stopped
 
 volumes:
