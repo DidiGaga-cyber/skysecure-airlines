@@ -1,7 +1,9 @@
 import json
 import pika
 import os
+import time
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import models, schemas
 from database import get_db
@@ -100,12 +102,21 @@ def create_ticket(
     }
 
 @router.get("/{id_bileta}/pdf")
-def get_ticket_pdf_status(id_bileta: int):
-    """
-    Stary endpoint synchronicznej generacji. 
-    W architekturze SOA zwraca informację o asynchronicznym przetwarzaniu.
-    """
-    return {
-        "status": "processing",
-        "message": f"Zadanie generowania PDF dla biletu {id_bileta} zostało przekazane do mikroserwisu."
-    }
+def get_ticket_pdf(id_bileta: int):
+    file_path = f"/app/pdfs/ticket_{id_bileta}.pdf"
+    
+    # Ждем до 5 секунд, пока микросервис (RabbitMQ consumer) создаст файл
+    for _ in range(10):
+        if os.path.exists(file_path):
+            return FileResponse(
+                path=file_path,
+                media_type="application/pdf",
+                filename=f"ticket_{id_bileta}.pdf"
+            )
+        time.sleep(0.5)
+        
+    # Если файл не успел сгенерироваться за 5 секунд
+    raise HTTPException(
+        status_code=404, 
+        detail="PDF wciąż się generuje. Odśwież stronę za chwilę."
+    )

@@ -45,9 +45,10 @@ services:
     env_file:
       - .env
     ports:
-      - "8001:8000" # Проброс только для тестов в обход Nginx
+      - "8001:8000"
     volumes:
       - ./BackEnd:/app
+      - ./generated_pdfs:/app/pdfs  # <-- ДОБАВИТЬ ЭТУ СТРОКУ
     depends_on:
       db:
         condition: service_healthy
@@ -65,13 +66,13 @@ services:
       - "8002:8000"
     volumes:
       - ./BackEnd:/app
+      - ./generated_pdfs:/app/pdfs  # <-- ДОБАВИТЬ ЭТУ СТРОКУ
     depends_on:
       db:
         condition: service_healthy
       rabbitmq:
         condition: service_started
     restart: unless-stopped
-
   proxy:
     image: owasp/modsecurity-crs:nginx-alpine
     container_name: skysecure_proxy
