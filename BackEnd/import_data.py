@@ -20,6 +20,53 @@ DATABASE_URL = os.getenv(
     "postgresql://skysecure_user:skysecure_password@localhost:5433/skysecure_db"
 )
 
+# Словарь известных международных аэропортов (fallback)
+KNOWN_AIRPORTS = {
+    'ADD': ('Bole International Airport', 'Addis Ababa', 'Ethiopia'),
+    'AKL': ('Auckland Airport', 'Auckland', 'New Zealand'),
+    'AMS': ('Amsterdam Airport Schiphol', 'Amsterdam', 'Netherlands'),
+    'ATL': ('Hartsfield-Jackson Atlanta International Airport', 'Atlanta', 'United States'),
+    'BKK': ('Suvarnabhumi Airport', 'Bangkok', 'Thailand'),
+    'BOG': ('El Dorado International Airport', 'Bogota', 'Colombia'),
+    'BOM': ('Chhatrapati Shivaji Maharaj International Airport', 'Mumbai', 'India'),
+    'CAI': ('Cairo International Airport', 'Cairo', 'Egypt'),
+    'CDG': ('Charles de Gaulle Airport', 'Paris', 'France'),
+    'CPH': ('Copenhagen Airport', 'Copenhagen', 'Denmark'),
+    'CPT': ('Cape Town International Airport', 'Cape Town', 'South Africa'),
+    'DEL': ('Indira Gandhi International Airport', 'Delhi', 'India'),
+    'DEN': ('Denver International Airport', 'Denver', 'United States'),
+    'DFW': ('Dallas/Fort Worth International Airport', 'Dallas', 'United States'),
+    'DOH': ('Hamad International Airport', 'Doha', 'Qatar'),
+    'DXB': ('Dubai International Airport', 'Dubai', 'United Arab Emirates'),
+    'EZE': ('Ministro Pistarini International Airport', 'Buenos Aires', 'Argentina'),
+    'FCO': ('Leonardo da Vinci-Fiumicino Airport', 'Rome', 'Italy'),
+    'FRA': ('Frankfurt am Main Airport', 'Frankfurt', 'Germany'),
+    'GRU': ('Sao Paulo/Guarulhos International Airport', 'Sao Paulo', 'Brazil'),
+    'HKG': ('Hong Kong International Airport', 'Hong Kong', 'Hong Kong'),
+    'HND': ('Tokyo Haneda Airport', 'Tokyo', 'Japan'),
+    'ICN': ('Incheon International Airport', 'Seoul', 'South Korea'),
+    'JFK': ('John F. Kennedy International Airport', 'New York', 'United States'),
+    'JNB': ('O.R. Tambo International Airport', 'Johannesburg', 'South Africa'),
+    'LAX': ('Los Angeles International Airport', 'Los Angeles', 'United States'),
+    'LHR': ('Heathrow Airport', 'London', 'United Kingdom'),
+    'LUZ': ('Port Lotniczy Lublin', 'Lublin', 'Polska'),
+    'MAD': ('Adolfo Suarez Madrid-Barajas Airport', 'Madrid', 'Spain'),
+    'MEL': ('Melbourne Airport', 'Melbourne', 'Australia'),
+    'MEX': ('Mexico City International Airport', 'Mexico City', 'Mexico'),
+    'MIA': ('Miami International Airport', 'Miami', 'United States'),
+    'MUC': ('Munich Airport', 'Munich', 'Germany'),
+    'ORD': ("O'Hare International Airport", 'Chicago', 'United States'),
+    'SCL': ('Arturo Merino Benitez International Airport', 'Santiago', 'Chile'),
+    'SFO': ('San Francisco International Airport', 'San Francisco', 'United States'),
+    'SIN': ('Singapore Changi Airport', 'Singapore', 'Singapore'),
+    'SYD': ('Sydney Kingsford Smith Airport', 'Sydney', 'Australia'),
+    'VIE': ('Vienna International Airport', 'Vienna', 'Austria'),
+    'WAW': ('Lotnisko Chopina', 'Warszawa', 'Polska'),
+    'YVR': ('Vancouver International Airport', 'Vancouver', 'Canada'),
+    'YYZ': ('Toronto Pearson International Airport', 'Toronto', 'Canada'),
+    'ZRH': ('Zurich Airport', 'Zurich', 'Switzerland'),
+}
+
 def get_engine():
     try:
         engine = create_engine(DATABASE_URL)
@@ -43,7 +90,10 @@ def import_lotniska(engine, csv_path="lotniska.csv"):
                 query = text("""
                     INSERT INTO lotniska (kod_iata, nazwa, miasto, kraj)
                     VALUES (:kod_iata, :nazwa, :miasto, :kraj)
-                    ON CONFLICT (kod_iata) DO NOTHING;
+                    ON CONFLICT (kod_iata) DO UPDATE SET
+                        nazwa = CASE WHEN lotniska.nazwa LIKE 'Lotnisko %' AND EXCLUDED.nazwa NOT LIKE 'Lotnisko %' THEN EXCLUDED.nazwa ELSE lotniska.nazwa END,
+                        miasto = CASE WHEN lotniska.miasto IN ('Unknown', 'Nieokreślone', '') AND EXCLUDED.miasto NOT IN ('Unknown', 'Nieokreślone', '') THEN EXCLUDED.miasto ELSE lotniska.miasto END,
+                        kraj = CASE WHEN lotniska.kraj IN ('Unknown', 'Nieokreślone', '') AND EXCLUDED.kraj NOT IN ('Unknown', 'Nieokreślone', '') THEN EXCLUDED.kraj ELSE lotniska.kraj END;
                 """)
                 res = conn.execute(query, {
                     "kod_iata": str(row['kod_iata']).strip().upper()[:3],
@@ -53,7 +103,7 @@ def import_lotniska(engine, csv_path="lotniska.csv"):
                 })
                 if res.rowcount > 0:
                     inserted_count += 1
-        logger.info(f"Импортировано новых аэропортов: {inserted_count}")
+        logger.info(f"Импортировано/обновлено аэропортов: {inserted_count}")
     except Exception as e:
         logger.error(f"Ошибка при импорте аэропортов: {e}")
         raise
@@ -85,19 +135,37 @@ def import_uzytkownicy(engine, csv_path="uzytkownicy.csv"):
         raise
 
 def ensure_airport_exists(conn, kod_iata):
-    """ Проверяет наличие аэропорта по IATA-коду. Если отсутствует — создаёт заглушку для целостности FK. """
+    """ Проверяет наличие аэропорта по IATA-коду. Если отсутствует — создаёт с известными данными или заглушкой. """
     kod_iata = str(kod_iata).strip().upper()[:3]
-    check_query = text("SELECT id_lotniska FROM lotniska WHERE kod_iata = :kod")
+    check_query = text("SELECT id_lotniska, miasto FROM lotniska WHERE kod_iata = :kod")
     res = conn.execute(check_query, {"kod": kod_iata}).fetchone()
+    
     if res:
+        # Если аэропорт был создан как Unknown, но у нас есть данные в KNOWN_AIRPORTS, обновляем его
+        if res[1] in ("Unknown", "Nieokreślone", "") and kod_iata in KNOWN_AIRPORTS:
+            nazwa, miasto, kraj = KNOWN_AIRPORTS[kod_iata]
+            conn.execute(text("""
+                UPDATE lotniska SET nazwa = :nazwa, miasto = :miasto, kraj = :kraj
+                WHERE id_lotniska = :id
+            """), {"nazwa": nazwa, "miasto": miasto, "kraj": kraj, "id": res[0]})
         return res[0]
     
+    if kod_iata in KNOWN_AIRPORTS:
+        nazwa, miasto, kraj = KNOWN_AIRPORTS[kod_iata]
+    else:
+        nazwa, miasto, kraj = f"Lotnisko {kod_iata}", "Unknown", "Unknown"
+
     insert_query = text("""
         INSERT INTO lotniska (kod_iata, nazwa, miasto, kraj)
-        VALUES (:kod, :nazwa, 'Unknown', 'Unknown')
+        VALUES (:kod, :nazwa, :miasto, :kraj)
         RETURNING id_lotniska;
     """)
-    res = conn.execute(insert_query, {"kod": kod_iata, "nazwa": f"Lotnisko {kod_iata}"}).fetchone()
+    res = conn.execute(insert_query, {
+        "kod": kod_iata,
+        "nazwa": nazwa,
+        "miasto": miasto,
+        "kraj": kraj
+    }).fetchone()
     return res[0]
 
 def import_loty(engine, csv_path="loty.csv"):
