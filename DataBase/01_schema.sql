@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1.  Użytkownicy 
+-- 1. Użytkownicy 
 CREATE TABLE uzytkownicy (
     id_uzytkownika INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nazwisko VARCHAR(50) NOT NULL,
@@ -33,23 +33,19 @@ CREATE TABLE loty (
     status VARCHAR(20) DEFAULT 'Zaplanowany' -- Zaplanowany, W trakcie, Zakończony, Odwołany
 );
 
-
 -- SPRINT 4: Rezerwacje, Bilety i Miejsca 
 
 -- 1. Tabela Miejsc (Fizyczna mapa pokładu dla każdego lotu)
--- Zamiast trzymać miejsca w JSON, relacyjna tabela pozwala łatwo filtrować wolne fotele.
 CREATE TABLE miejsca (
     id_miejsca INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_lotu INTEGER NOT NULL REFERENCES loty(id_lotu) ON DELETE CASCADE,
     numer_miejsca VARCHAR(5) NOT NULL, -- np. "12A", "1A"
     klasa VARCHAR(20) DEFAULT 'Economy', -- Economy, Business, First
     czy_wolne BOOLEAN DEFAULT TRUE,
-    -- GWARANCJA BAZY: Na jednym locie nie może być dwóch takich samych miejsc!
     CONSTRAINT uq_lot_miejsce UNIQUE(id_lotu, numer_miejsca)
 );
 
 -- 2. Tabela Rezerwacji (Zamówienie - może zawierać kilka biletów)
--- Rozdzielam "Koszyk/Zamówienie" od samego "Biletu", bo ktoś może kupić bilety dla całej rodziny.
 CREATE TABLE rezerwacje (
     id_rezerwacji INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_uzytkownika INTEGER NOT NULL REFERENCES uzytkownicy(id_uzytkownika) ON DELETE CASCADE,
@@ -63,22 +59,15 @@ CREATE TABLE rezerwacje (
 CREATE TABLE bilety (
     id_biletu INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_rezerwacji INTEGER NOT NULL REFERENCES rezerwacje(id_rezerwacji) ON DELETE CASCADE,
-    -- ON DELETE RESTRICT: Nie pozwolimy usunąć miejsca, jeśli jest na nie wystawiony bilet.
     id_miejsca INTEGER NOT NULL REFERENCES miejsca(id_miejsca) ON DELETE RESTRICT, 
     imie_pasazera VARCHAR(50) NOT NULL,
     nazwisko_pasazera VARCHAR(50) NOT NULL,
-    -- ZASZYFROWANE DANE: Tutaj wpadnie AES-256 z pgcrypto w Sprincie 5 (dlatego typ BYTEA - binarne).
-    
-    --dane_paszportowe BYTEA, -- Not needed. Reservation doesn't requeire passport data anymore.
-
-    -- GWARANCJA BAZY: Jedno fizyczne miejsce w samolocie = maksymalnie jeden bilet.
     CONSTRAINT uq_miejsce_bilet UNIQUE(id_miejsca)
 );
 
 -- SPRINT 5: Płatności
 
 -- 4. Tabela Płatności (Śledzenie transakcji finansowych)
--- tip: Trzymamy historię płatności z unikalnym UUID sesji dla symulacji bramek (PayU/Stripe).
 CREATE TABLE platnosci (
     id_platnosci INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_rezerwacji INTEGER NOT NULL REFERENCES rezerwacje(id_rezerwacji) ON DELETE CASCADE,
@@ -86,20 +75,54 @@ CREATE TABLE platnosci (
     status_transakcji VARCHAR(20) DEFAULT 'Pending', -- Pending, Success, Failed
     metoda VARCHAR(50) NOT NULL, -- np. Karta, BLIK
     data_transakcji TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    identyfikator_sesji UUID -- Idealne do mockowania UC-5
+    identyfikator_sesji UUID
 );
 
 -- SPRINT 7: Bezpieczeństwo i Audyt (OWASP)
 
 -- 5. Logi Audytowe (Śledzenie aktywności w systemie)
--- tip: "ON DELETE SET NULL". Jeśli usuniemy hakera z bazy, jego logi MUSZĄ zostać dla prokuratury!
 CREATE TABLE logi_audytowe (
     id_logu INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_uzytkownika INTEGER REFERENCES uzytkownicy(id_uzytkownika) ON DELETE SET NULL, 
-    adres_ip VARCHAR(45), -- 45 znaków pokrywa standard IPv6
-    akcja VARCHAR(100) NOT NULL, -- np. 'LOGIN_FAILED', 'RESERVATION_CREATED'
+    adres_ip VARCHAR(45),
+    akcja VARCHAR(100) NOT NULL, 
     szczegoly TEXT,
     data_zdarzenia TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- =============================================================================
+-- АВТОМАТИЧЕСКАЯ ГЕНЕРАЦИЯ МЕСТ ДЛЯ НОВЫХ РЕЙСОВ
+-- =============================================================================
 
+-- Функция, которая создает места на основе колонки liczba_miejsc
+CREATE OR REPLACE FUNCTION generate_seats_for_new_flight()
+RETURNS TRIGGER AS $$
+DECLARE
+    seat_count INT := 0;
+    row_num INT := 1;
+    col_idx INT := 1;
+    cols TEXT[] := ARRAY['A', 'B', 'C', 'D', 'E', 'F']; -- Рассадка 3-3 (Economy)
+BEGIN
+    WHILE seat_count < NEW.liczba_miejsc LOOP
+        INSERT INTO miejsca (id_lotu, numer_miejsca, klasa, czy_wolne)
+        VALUES (NEW.id_lotu, row_num::TEXT || cols[col_idx], 'Economy', TRUE);
+        
+        seat_count := seat_count + 1;
+        col_idx := col_idx + 1;
+        
+        -- Переход на следующий ряд после создания 6 мест в текущем ряду
+        IF col_idx > 6 THEN
+            col_idx := 1;
+            row_num := row_num + 1;
+        END IF;
+    END LOOP;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Триггер, срабатывающий после каждого INSERT в таблицу loty
+CREATE TRIGGER trg_generate_seats_after_insert
+AFTER INSERT ON loty
+FOR EACH ROW
+EXECUTE FUNCTION generate_seats_for_new_flight();
