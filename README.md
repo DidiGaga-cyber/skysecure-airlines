@@ -1,296 +1,314 @@
 # SkySecure Airlines
 
-> System zakupu i rezerwacji biletów lotniczych dla linii pasażerskich **SkySecure Airlines**.
+> Zaawansowany i bezpieczny system zakupu oraz rezerwacji biletów lotniczych dla linii pasażerskich **SkySecure Airlines**, zrealizowany w architekturze mikroserwisowej / SOA z asynchronicznym przetwarzaniem zadań i ochroną klasy OWASP.
+
+---
+
+## Spis treści
+- [Opis projektu](#opis-projektu)
+- [Architektura systemu](#architektura-systemu)
+- [Stos technologiczny](#stos-technologiczny)
+- [Główne funkcjonalności](#główne-funkcjonalności)
+- [Model danych i baza relacyjna](#model-danych-i-baza-relacyjna)
+- [Bezpieczeństwo i mechanizmy ochrony](#bezpieczeństwo-i-mechanizmy-ochrony)
+- [Import i migracja danych (ETL)](#import-i-migracja-danych-etl)
+- [Struktura repozytorium](#struktura-repozytorium)
+- [Specyfikacja API (REST)](#specyfikacja-api-rest)
+- [Instrukcja uruchomienia](#instrukcja-uruchomienia)
+- [Konta testowe](#konta-testowe)
+- [Testy integracyjne](#testy-integracyjne)
+- [Autorzy](#autorzy)
+- [Zrzuty ekranu](#zrzuty-ekranu)
+
+---
 
 ## Opis projektu
 
-**SkySecure Airlines** to webowa aplikacja do zakupu i rezerwacji biletów lotniczych, stworzona z myślą o pasażerach poszukujących szybkiego i bezpiecznego systemu rezerwacji online. Aplikacja umożliwia wyszukiwanie lotów, wybór miejsc, płatność oraz pobranie e-biletu w formacie PDF.
+**SkySecure Airlines** to kompleksowa aplikacja webowa do obsługi rezerwacji i zakupu biletów lotniczych online. System zapewnia pasażerom wyszukiwanie połączeń w czasie rzeczywistym, interaktywną mapę miejsc w samolocie, moduł płatności oraz automatyczne, asynchroniczne generowanie e-biletów PDF z wykorzystaniem kolejki komunikatów.
 
-**Cel:** Zapewnienie w pełni funkcjonalnego, bezpiecznego systemu rezerwacji lotów z panelem administracyjnym oraz ochroną przed podstawowymi atakami OWASP.
-
-**Grupa docelowa:** Pasażerowie linii SkySecure Airlines oraz administratorzy systemu zarządzający siatką połączeń.
+Dla zarządców siatki połączeń przygotowano dedykowany panel administracyjny umożliwiający zarządzanie lotami, kontrolę statusów operacyjnych (`Zaplanowany`, `Opóźniony`, `W trakcie`, `Zakończony`, `Odwołany`) oraz wgląd w rejestr zdarzeń audytowych.
 
 ---
 
-## Status projektu: Sprint 7 — UKOŃCZONY
+## Architektura systemu
+
+Aplikacja oparta jest na nowoczesnej architekturze **zorientowanej na usługi (SOA) / mikroserwisowej** ze skalowalnym klastrem kontenerów Docker Compose:
+
+1. **Klient (SPA):** Interaktywny frontend napisany w Vue 3 i ostylowany w Tailwind CSS.
+2. **Brama brzegowa / Reverse Proxy / WAF:** Serwer Nginx zintegrowany z modułem **OWASP ModSecurity Core Rule Set (CRS)**, zapewniający terminację TLS/SSL, ochronę przed atakami webowymi, buforowanie i load balancing backendu.
+3. **Usługa API (Backend):** Zduplikowane instancje FastAPI (`backend-1` i `backend-2`), realizujące logikę biznesową, autoryzację OAuth2/JWT oraz kontrolę dostępu opartą na rolach (RBAC).
+4. **Broker komunikatów:** **RabbitMQ** z trwałymi kolejkami (`ticket_pdf_queue`) oraz gwarancją dostarczenia wiadomości (`delivery_mode=2`).
+5. **Mikroserwis generowania dokumentów (Worker):** Dedykowana usługa konsumencka `PdfService` (`pdf_worker`), przetwarzająca zadania w tle zaimplementowana ze wzorcem ponawiania prób (**Retry Pattern** z opóźnieniem wykładniczym).
+6. **Baza danych:** Relacyjna baza **PostgreSQL 15** z funkcjami kryptograficznymi `pgcrypto`, mechanizmami blokowania pesymistycznego (concurrency control) oraz automatycznymi wyzwalaczami generowania miejsc.
+
+```
+       [ Użytkownik / Przeglądarka ]
+                    │
+                    ▼  HTTPS (443)
+       ┌───────────────────────────────┐
+       │   Nginx Reverse Proxy + WAF   │
+       │   (OWASP ModSecurity CRS)     │
+       └───────┬───────────────┬───────┘
+               │               │
+  /api/ (Load Balancing)       │ / (Static Files)
+       ┌───────┴───────┐       ▼
+       ▼               ▼   [ Frontend SPA (Vue 3) ]
+ [ Backend Replika 1 ] [ Backend Replika 2 ]
+       │               │
+       ├───────────────┴────────────────────────┐
+       ▼                                        ▼
+[ PostgreSQL 15 ] (SQLAlchemy / ACID)     [ RabbitMQ Broker ]
+                                                │
+                                                ▼ (AMQP Task Queue)
+                                         [ PdfService Worker ]
+                                                │
+                                                ▼
+                                         [ Katalog PDF ]
+```
 
 ---
 
-## Co zostało zrobione
-
-### Sprint 1 — Szkielet projektu
-> Szkielet projektu uruchamia się lokalnie u każdego członka zespołu bez błędów.
-
-* **Setup ClickUp & GitHub** — Założenie repozytorium na GitHub z dostępami, konfiguracja tablicy w ClickUp.
-* **Docker: Pusta Baza** — Plik `docker-compose.yml` podnoszący instancję PostgreSQL.
-* **Setup FastAPI & SQLAlchemy** — Konfiguracja pustego projektu API i połączenia z bazą danych.
-* **Endpoint Healthcheck** — Endpoint `/api/health` do weryfikacji działania serwera.
-* **Setup Vue 3 & Tailwind CSS** — Utworzenie projektu SPA i konfiguracja bazowych stylów.
-* **Puste widoki (Routing)** — Vue Router z pustymi stronami (Home, Login).
-
----
-
-### Sprint 2 — Autoryzacja użytkowników
-> Użytkownik może otworzyć stronę, założyć konto i zalogować się do systemu.
-
-* **SQL DDL: Użytkownicy** — Skrypt tworzący tabelę `Użytkownicy`.
-* **Reverse Proxy (Nginx)** — Nginx w Dockerze kierujący ruch na FastAPI (port 80 → 8000).
-* **Logowanie i Rejestracja** — Endpointy autoryzacji z hashowaniem Argon2 i JWT (UC-1, UC-12).
-* **Model User (ORM)** — Model użytkownika w SQLAlchemy.
-* **Widok: Formularze Auth** — Ekrany logowania/rejestracji z walidacją danych.
-* **Zapis Tokenu JWT** — Logika Vue do przechowywania sesji użytkownika w `localStorage`.
-
----
-
-### Sprint 3 — Wyszukiwarka lotów
-> System wyświetla dostępne loty na stronie głównej i pozwala na ich wyszukiwanie.
-
-* **SQL DDL: Loty i Lotniska** — Tabele `Loty`, `Samoloty`, `Lotniska` z relacjami.
-* **Seeding: Dane testowe** — Skrypt SQL z fikcyjnymi lotniskami i lotami (m.in. WAW-JFK, LUZ-LHR).
-* **Wyszukiwarka (API)** — Endpoint `GET /flights` filtrujący loty po dacie i trasie (UC-2).
-* **Widok: Strona Główna** — Hero Section z wyszukiwarką.
-* **Integracja Wyników** — Wyświetlanie wyników z bazy w formie tabeli (czas, cena).
-
----
-
-### Sprint 4 — Wybór miejsc i rezerwacja
-> Pasażer może wybrać konkretne miejsce w samolocie z interaktywnej mapy.
-
-* **SQL DDL: Rezerwacje i Miejsca** — Tabele `Rezerwacje`, `Bilety`, `Miejsca`.
-* **Mapa miejsc (API)** — Endpoint zwracający aktualny stan miejsc dla lotu (wolne/zajęte).
-* **Tworzenie Rezerwacji** — Logika tworzenia wstępnej rezerwacji „Oczekującej" (UC-3).
-* **Interaktywna Mapa Miejsc** — Mapa samolotu z legendą kolorystyczną (UC-7).
-* **Formularz Pasażerów** — Ekran wprowadzania danych personalnych do biletu.
-
----
-
-### Sprint 5 — Płatności
-> Użytkownik może sfinalizować zamówienie i uzyskać potwierdzenie płatności.
-
-* **SQL DDL: Płatności** — Tabela `Płatności` powiązana z `Rezerwacjami`.
-* **Szyfrowanie AES-256** — Konfiguracja `pgcrypto` do szyfrowania danych paszportowych.
-* **Mock Bramki Płatniczej** — Endpoint symulujący autoryzację płatności (UC-5).
-* **Widok Płatności** — Ekran wprowadzania danych karty z elementami wizualnego bezpieczeństwa.
-* **Ekran Sukcesu** — Widok z podsumowaniem zakupu.
-
----
-
-### Sprint 6 — Panel Administratora
-> Administrator posiada ukryty panel do zarządzania siatką połączeń i statystykami.
-
-* **SQL: Role i Uprawnienia** — Weryfikacja struktury i dostępów dla roli `Admin` na poziomie bazy.
-* **Zarządzanie Lotami (API)** — Endpointy CRUD (Dodaj, Usuń) z wymogiem tokena Admina (UC-9).
-* **Generowanie PDF (E-ticket)** — Logika generowania biletu w formacie PDF (UC-6).
-* **Panel Admina (Dark Mode)** — Osobny routing do panelu z odmienną kolorystyką.
-* **Tabela Lotów (Frontend)** — Główny widok do zarządzania i dodawania nowych lotów.
-
----
-
-### Sprint 7 — Bezpieczeństwo i gotowość do obrony
-> Aplikacja jest zabezpieczona przed podstawowymi atakami (OWASP) i gotowa do obrony projektu.
-
-* **Wdrożenie WAF & SSL/TLS** — Konfiguracja ModSecurity i certyfikatów HTTPS.
-* **Rate Limiting & Logi** — Ochrona przed Brute Force oraz logi audytowe operacji bazy.
-* **Bugfixing API** — Analiza i poprawki błędów według testów Postman.
-* **Wygasanie sesji JWT** — Frontendowa logika wylogowania po wygaśnięciu tokenu.
-* **Odprawa Online (UI)** — Zakładka „Moje loty" z opcją pobrania biletu PDF i odprawy (UC-8).
-
----
-
-## Autorzy/Zespół
-
-| Członek | Odpowiedzialność |
-|---|---|
-| **Valentyn** | DevOps, baza danych, infrastruktura, bezpieczeństwo |
-| **Dmitrii H.** | Backend (FastAPI), logika biznesowa, API |
-| **Dmytro D.** | Frontend (Vue 3), interfejs użytkownika |
-
----
-
-## Technologia
+## Stos technologiczny
 
 | Warstwa | Technologie |
 |---|---|
-| **Frontend** | Vue 3, Tailwind CSS, Axios |
-| **Backend** | FastAPI, PyJWT, Passlib (Argon2) |
-| **Baza danych** | PostgreSQL 15, SQLAlchemy (ORM), pgcrypto (AES-256) |
-| **Bezpieczeństwo** | ModSecurity (WAF), SSL/TLS, Rate Limiting, JWT |
-| **Infrastruktura** | Nginx, Docker, Docker Compose |
+| **Frontend** | Vue 3 (Composition API), Tailwind CSS, Axios, Google Material Icons |
+| **Backend API** | Python 3.11, FastAPI, Pydantic, SQLAlchemy 2.0, Jose (JWT), Tenacity |
+| **Kolejkowanie & SOA** | RabbitMQ 3 (Management), Pika (AMQP Client), FPDF2 |
+| **Baza danych** | PostgreSQL 15, `pgcrypto` (AES-256), PL/pgSQL Triggers |
+| **Bezpieczeństwo** | ModSecurity WAF, OWASP CRS, Argon2id, OAuth2 Bearer Tokens, RBAC |
+| **Infrastruktura** | Docker, Docker Compose, Nginx (Alpine), Multi-stage Dockerfiles |
 
 ---
 
----
+## Główne funkcjonalności
 
-## Funkcjonalności
-- rejestracja użytkownika
-- logowanie użytkownika
-- logowanie administratora
-- zarządzanie lotami(jako administrator)
-- dodanie nowych lotów (jako administrator)
-- wyszukiwanie lotów(jako użytkowniak)
-- tworzenie rezerwacji(jako użytkowniak)
-- wybór miejsc różnych klasów(Ekonom/Business)
-- wybor sposobu opłaty(Krata debtowa/BLIK/apple pay)
-- pobranie pliku pdf(jako użytkowniak)
-- wybor sposobu opłaty(Krata debtowa/BLIK/apple pay)
+### Dla Pasażerów:
+- **Wyszukiwarka połączeń:** Filtrowanie lotów według lotniska wylotu, przylotu i daty podróży.
+- **Weryfikacja statusu:** Blokada rezerwacji na loty o statusie innym niż `Zaplanowany` (np. loty opóźnione, odwołane lub zrealizowane).
+- **Interaktywna mapa pokładu:** Wybór konkretnego miejsca w klasie Economy lub Business z dynamicznym podglądem zajętości.
+- **Wielokanałowe płatności:** Symulacja płatności kartą debetową/kredytową, kodem BLIK lub Apple Pay z szyfrowaniem identyfikatorów transakcji.
+- **Pobieranie e-biletu PDF:** Błyskawiczny dostęp do wygenerowanego w tle dokumentu podróżnego z unikalnym identyfikatorem rezerwacji.
+- **Panel pasażera:** Przegląd historii rezerwacji, statusów opłat oraz pobieranie archiwalnych biletów.
 
-
-
----
-
-## Struktura bazy danych
-
-System operuje na 6 powiązanych relacyjnie tabelach:
-
-1. **Użytkownicy** — dane osobowe, hasło (Argon2), rola (pasażer / admin)
-2. **Lotniska** — kod IATA (np. WAW, LUZ), nazwa, miasto, kraj
-3. **Loty** — numer lotu, klucze obce do lotnisk (odlot/przylot), czasy, cena, liczba miejsc
-4. **Miejsca** — stan miejsca (wolne/zajęte), powiązanie z lotem
-5. **Rezerwacje** — status rezerwacji, powiązanie z użytkownikiem i lotem
-6. **Płatności** — dane transakcji, powiązanie z rezerwacją (dane paszportowe szyfrowane AES-256)
-
-
----
-## Architektura
-Aplikacja jest zbudowana w architekturze klient–serwer.
-
-Frontend komunikuje się z backendem za pomocą REST API.
-Backend obsługuje logikę biznesową oraz komunikację z bazą danych.
+### Dla Administratorów:
+- **Panel zarządzania lotami (Dark Mode):** Dodawanie nowych połączeń z automatyczną generacją miejsc pokładowych.
+- **Edycja i anulowanie połączeń:** Modyfikacja parametrów lotu, cen oraz stanów operacyjnych (`Zaplanowany`, `Opóźniony`, `W trakcie`, `Zakończony`, `Odwołany`).
+- **Nadzór bazy i miejsc:** Kaskadowe usuwanie powiązań z poszanowaniem integralności biletów opłaconych.
+- **Dostęp RBAC:** Rygorystyczna separacja uprawnień administracyjnych od zwykłych użytkowników na poziomie aplikacji i bazy danych.
 
 ---
 
-## Jak uruchomić projekt
+## Model danych i baza relacyjna
 
-### Wymagania
-- Docker Desktop (uruchomiony)
-- Przeglądarka internetowa
+Baza danych operuje na spójnym schemacie relacyjnym z kluczami obcymi i indeksami wydajnościowymi:
 
-### Krok 1: Pobranie kodu
+1. **`uzytkownicy`** — Identyfikatory, imię, nazwisko, unikalny email, hasło (hash Argon2id), rola w systemie (`User`, `Admin`).
+2. **`lotniska`** — Kod IATA (unikalny klucz biznesowy, np. WAW, JFK), pełna nazwa, miasto, kraj.
+3. **`loty`** — Relacje z lotniskiem wylotu i przylotu, czasy odlotu/przylotu, cena bazowa, liczba miejsc, status operacyjny.
+4. **`miejsca`** — Fizyczny układ pokładu dla każdego lotu, oznaczenie rzędu i fotela (np. 1A, 12F), klasa (`Economy`, `Business`), flaga `czy_wolne`.
+5. **`rezerwacje`** — Zamówienie powiązane z użytkownikiem i lotem, kwota łączna, status (`Oczekująca`, `Opłacona`, `Anulowana`).
+6. **`bilety`** — Przypisanie pasażera do rezerwacji oraz konkretnego miejsca w samolocie.
+7. **`platnosci`** — Ewidencja transakcji powiązana z rezerwacją, metoda, kwota, status oraz identyfikator sesji UUID.
+8. **`logi_audytowe`** — Dziennik bezpieczeństwa rejestrujący kluczowe akcje systemu, adresy IP, identyfikatory użytkowników i znaczniki czasu.
 
-```bash
-git clone https://github.com/DidiGaga-cyber/skysecure-airlines.git
-cd skysecure-airlines
-```
+---
 
-### Krok 2: Pobranie .env
+## Bezpieczeństwo i mechanizmy ochrony
 
-Utwórz file .env i wstaw secret kłuche które otrzymał od członka zespołu
-```bash
-DATABASE_URL=****
-DB_ENCRYPTION_KEY=****
-```
+- **Zapora WAF (ModSecurity + OWASP Core Rule Set):** Wykrywanie i blokowanie ataków SQL Injection, XSS, Path Traversal, HTTP Request Smuggling oraz złośliwych botów.
+- **Uwierzytelnianie & Autoryzacja:** Standard OAuth2 Password Bearer z podpisem HMAC-SHA256 (JWT), mechanizm wygasania tokenów i obsługa bezpiecznego wylogowania.
+- **Haszowanie haseł:** Nowoczesny algorytm **Argon2id** (odporny na ataki GPU/ASIC i brute-force).
+- **Poziom bazy danych (PostgreSQL RBAC):** Ustawianie ról sesyjnych w bazie (`SET LOCAL ROLE app_admin_role` / `app_user_role`) zależnie od tożsamości z tokena.
+- **Ochrona przed wyścigami (Race Conditions):** Blokowanie pesymistyczne wiersza bazy (`with_for_update()`) podczas rezerwacji miejsc.
+- **Audyt OWASP:** Szczegółowe logowanie zdarzeń autoryzacyjnych, płatniczych i administracyjnych w tabeli audytu.
 
-### Krok 3: Uruchomienie infrastruktury
+---
 
-```bash
-docker-compose down -v
-docker-compose up -d --build
-```
+## Import i migracja danych (ETL)
 
-> Flaga `-v` jest wymagana do wyczyszczenia starych wolumenów i załadowania nowych danych testowych.
+W projekcie zaimplementowano skrypt **[`BackEnd/import_data.py`](BackEnd/import_data.py)** realizujący jednostronny transfer danych z plików CSV do relacyjnej bazy PostgreSQL:
 
-### Krok 4: Weryfikacja API
-
-Poczekaj 10–15 sekund na inicjalizację bazy, następnie otwórz dokumentację Swagger:
-
-```
-https://localhost/api/docs
-```
-
-<!-- 📸 SCREENSHOT: Widok Swagger UI z listą endpointów API -->
-<img width="1887" height="1046" alt="image" src="https://github.com/user-attachments/assets/249f11d1-f513-4955-97d5-52894563fac5" />
-
-> *(Zrzut ekranu interfejsu Swagger /api/docs)*
-
-### Krok 5: Uruchomienie aplikacji klienckiej
-
-otwórz przeglądarkę internetową(najlepiej Chrome lub FireFox aktualnej wersji)
-
-przejdż na adres: https://localhost
-
-### Krok 6: Logowanie testowe
-
-wybierz zakładkę logowanie
-
-Możesz zarejestrować nowego użytkownika lub skorzystać z gotowych kont:
-
-| Rola | Email | Hasło |
-|---|---|---|
-| Administrator | `admin@skysecure.pl` | `SuperSecretPassword123` |
-| Pasażer testowy | `test@skysecure.pl` | `SuperSecretPassword123` |
+- Obsługiwane pliki źródłowe: `lotniska.csv`, `uzytkownicy.csv`, `loty.csv`.
+- Walidacja typów danych, normalizacja dat ISO/Timestamp oraz czyszczenie wartości pustych (`NaN`).
+- Obsługa integralności relacji kluczy obcych (`ensure_airport_exists`).
+- Idempotentność i odporność na duplikaty (`ON CONFLICT DO NOTHING`).
+- Skrypt wykonuje się automatycznie przy starcie kontenera backendowego oraz może być uruchamiany niezależnie.
 
 ---
 
 ## Struktura repozytorium
 
-frontend/ – interfejs użytkownika
-backend/ – logika aplikacji
-DataBase/ - baza danych z danymi przykładowymi
-Nginx/ - sieciwa część aplikacji
-dacker-compose.yml - łatwa instalacja i uruchomienie projektu
+```
+skysecure-airlines/
+│
+├── BackEnd/                    # Aplikacja FastAPI (REST API)
+│   ├── tests/                  # Testy integracyjne (pytest)
+│   │   └── test_integration.py
+│   ├── auth.py                 # Endpointy rejestracji, logowania i middleware JWT
+│   ├── auth_utils.py           # Narzędzia kryptograficzne (Argon2id, tokeny JWT)
+│   ├── bookings.py             # Logika rezerwacji miejsc i transakcji
+│   ├── database.py             # Konfiguracja SQLAlchemy i sesji bazy danych
+│   ├── flights.py              # Wyszukiwanie, pobieranie i edycja lotów
+│   ├── import_data.py          # Skrypt ETL importujący dane z CSV
+│   ├── main.py                 # Punkt wejścia aplikacji FastAPI
+│   ├── models.py               # Modele relacyjne ORM
+│   ├── payments.py             # Obsługa transakcji płatniczych
+│   ├── schemas.py              # Schematy walidacji Pydantic
+│   ├── tickets.py              # Wystawianie biletów i publikacja zadań do RabbitMQ
+│   ├── lotniska.csv            # Dane źródłowe: lotniska
+│   ├── loty.csv                # Dane źródłowe: loty
+│   ├── uzytkownicy.csv         # Dane źródłowe: użytkownicy
+│   └── Dockerfile
+│
+├── FrontEnd/                   # Interfejs użytkownika SPA (HTML5 / Vue 3)
+│   ├── js/                     # Logika modułów Vue i komunikacji Axios
+│   │   ├── admin.js            # Obsługa panelu administratora
+│   │   ├── index.js            # Wyszukiwarka, mapa miejsc i płatności
+│   │   ├── login.js            # Logowanie i rejestracja
+│   │   ├── notify.js           # Powiadomienia toast i modale
+│   │   ├── profile.js          # Widok profilu i pobieranie biletów
+│   │   └── state.js            # Globalny stan sesji i interceptory JWT
+│   ├── admin.html              # Panel administratora (Dark Mode)
+│   ├── index.html              # Strona główna z wyszukiwarką i rezerwacją
+│   ├── login.html              # Formularze autoryzacji
+│   └── profile.html            # Panel użytkownika
+│
+├── PdfService/                 # Mikroserwis SOA generowania dokumentów PDF
+│   ├── pdf_worker.py           # Konsument kolejki RabbitMQ z Retry Pattern
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── DataBase/                   # Skrypty inicjalizujące PostgreSQL
+│   ├── 01_schema.sql           # DDL tabel, indeksy i wyzwalacze miejsc
+│   ├── 02_seed.sql             # Dane testowe (użytkownicy, loty, rezerwacje)
+│   └── 03_roles_and_permissions.sql # Uprawnienia ról SQL
+│
+├── Nginx/                      # Konfiguracja reverse proxy i certyfikaty SSL
+│   ├── certs/                  # Certyfikaty SSL/TLS
+│   └── nginx.conf              # Konfiguracja Nginx, SSL, WAF oraz upstreamów API
+│
+├── generated_pdfs/             # Współdzielony wolumen wygenerowanych biletów PDF
+├── docker-compose.yml          # Konfiguracja klastra wielokontenerowego
+└── README.md                   # Dokumentacja projektu
+```
 
 ---
 
-## API
-## auth
-POST /auth/register
-POST /auth/login
+## Specyfikacja API (REST)
 
-## system
-GET /health
+Dokumentacja interaktywna Swagger UI jest dostępna pod adresem: `https://localhost/api/docs`
 
-## flights
- GET /flights/
- POST /flights/
- GET /flights/{id_lotu}/seats
- PUT /flights/{id_lotu}
- DELETE /flights/{id_lotu}
- 
-## airports 
-GET /flights/airports/{id_lotniska}
-
-## bookings
-POST /bookings/
-
-## tickets
-POST /bookings/
-GET /tickets/{id_bileta}/pdf
-
-## payments
-POST /payments/process
-
----
-## Demo i zrzuty ekranu
-
-<!-- 📸 SCREENSHOT: Strona główna z wyszukiwarką lotów (Hero Section) -->
-<img width="1919" height="1060" alt="image" src="https://github.com/user-attachments/assets/ea9f3bfb-1f27-4de8-a84d-84ef1e130311" />
-
-> *(Zrzut ekranu strony głównej z wyszukiwarką)*
-
-<!-- 📸 SCREENSHOT: Interaktywna mapa miejsc w samolocie -->
-<img width="1898" height="1053" alt="image" src="https://github.com/user-attachments/assets/9b926aad-0630-4121-a093-edf552fd6d0f" />
-
-> *(Zrzut ekranu mapy miejsc z legendą kolorystyczną)*
-
-<!-- 📸 SCREENSHOT: Ekran płatności i ekran sukcesu -->
-<img width="1895" height="1051" alt="image" src="https://github.com/user-attachments/assets/c5735c32-12a2-4043-a52a-095a20f06df7" />
-<img width="1917" height="1012" alt="image" src="https://github.com/user-attachments/assets/10e26ad0-d215-4129-927f-0ee6fbe88482" />
-<img width="1915" height="1046" alt="image" src="https://github.com/user-attachments/assets/2809d9e6-59e0-4d38-a76b-5c8649c31f6e" />
-<img width="1919" height="1045" alt="image" src="https://github.com/user-attachments/assets/b0c0a5ce-f824-4f25-a057-4466729e5652" />
-
-
-> *(Zrzut ekranu formularza płatności i potwierdzenia zakupu)*
-<img width="785" height="493" alt="image" src="https://github.com/user-attachments/assets/7a9ad4ee-eaa4-43ee-b92f-55e5d3d33b27" />
-> *(Zrzut PDF biletu)*
-
-
-<!-- 📸 SCREENSHOT: Panel Administratora (Dark Mode) -->
-<img width="1915" height="1058" alt="image" src="https://github.com/user-attachments/assets/85ae31dd-2d79-4daf-9291-d8c771ce4eb9" />
-
-> *(Zrzut ekranu panelu admina w trybie ciemnym)*
+| Metoda | Endpoint | Wymagane uprawnienia | Opis |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Publiczny | Rejestracja nowego pasażera |
+| `POST` | `/api/auth/login` | Publiczny | Logowanie (OAuth2 form), zwrot tokenu JWT |
+| `GET` | `/api/health` | Publiczny | Healthcheck dostępności API i bazy |
+| `GET` | `/api/flights/` | Publiczny | Wyszukiwanie lotów (filtry: `from`, `to`, `date`) |
+| `GET` | `/api/flights/{id}/seats` | Publiczny | Pobranie mapy i dostępności miejsc w locie |
+| `GET` | `/api/flights/airports/{id}` | Publiczny | Pobranie szczegółów lotniska po ID |
+| `POST` | `/api/flights/` | **Admin** | Utworzenie nowego lotu i generowanie miejsc |
+| `PUT` | `/api/flights/{id}` | **Admin** | Aktualizacja parametrów lub statusu lotu |
+| `DELETE`| `/api/flights/{id}` | **Admin** | Usunięcie lotu z bazy |
+| `POST` | `/api/bookings/` | Zalogowany (**User/Admin**) | Utworzenie rezerwacji wstępnej |
+| `POST` | `/api/tickets/` | Zalogowany (**User/Admin**) | Przypisanie pasażera do miejsca i wysłanie zadania PDF do RabbitMQ |
+| `GET` | `/api/tickets/{id}/pdf` | Zalogowany (**User/Admin**) | Pobranie gotowego pliku e-biletu PDF |
+| `POST` | `/api/payments/process` | Zalogowany (**User/Admin**) | Przetworzenie płatności za rezerwację |
 
 ---
 
+## Instrukcja uruchomienia
+
+### Wymagania wstępne
+- **Docker Desktop** (uruchomiony silnik Docker)
+- Nowoczesna przeglądarka internetowa (Chrome, Edge, Firefox)
+
+### 1. Pobranie repozytorium
+```bash
+git clone https://github.com/DidiGaga-cyber/skysecure-airlines.git
+cd skysecure-airlines
+```
+
+### 2. Konfiguracja zmiennych środowiskowych (.env)
+Utwórz plik `.env` w głównym katalogu projektu:
+```env
+DATABASE_URL=postgresql://skysecure_user:skysecure_password@db:5432/skysecure_db
+DB_ENCRYPTION_KEY=skysecure_super_secret_encryption_key_2026!
+SECRET_KEY=super_secret_jwt_key_skysecure_production_token_signature_2026
+```
+
+### 3. Uruchomienie klastra
+```bash
+docker-compose down -v
+docker-compose up -d --build
+```
+> **Uwaga:** Flaga `-v` czyści stare wolumeny bazodanowe, zapewniając wykonanie świeżej migracji schematu i załadowanie danych początkowych.
+
+### 4. Dostęp do usług
+- **Aplikacja kliencka:** [https://localhost](https://localhost)
+- **Dokumentacja API (Swagger):** [https://localhost/api/docs](https://localhost/api/docs)
+- **Panel zarządzania RabbitMQ:** [http://localhost:15672](http://localhost:15672) (użytkownik: `guest`, hasło: `guest`)
+
 ---
 
+## Konta testowe
 
+Do weryfikacji działania systemu można skorzystać z predefiniowanych kont:
+
+| Rola | Adres Email | Hasło | Zastosowanie |
+|---|---|---|---|
+| **Administrator** | `admin@skysecure.pl` | `SuperSecretPassword123` | Zarządzanie lotami w panelu admina (`admin.html`) |
+| **Pasażer testowy** | `test@skysecure.pl` | `SuperSecretPassword123` | Wyszukiwanie, rezerwacja, płatności i pobieranie biletów |
+
+---
+
+## Testy integracyjne
+
+W kontenerze backendu przygotowano zestaw testów integracyjnych weryfikujących sprawność brokera RabbitMQ oraz pełny cykl End-to-End generowania dokumentów PDF:
+
+```bash
+docker exec -it skysecure_backend_1 pytest tests/test_integration.py -v
+```
+
+Testy weryfikują:
+1. Prawidłowe nawiązanie łączności z kolejką RabbitMQ.
+2. Nadanie zadania generowania biletu do kolejki `ticket_pdf_queue`.
+3. Wygenerowanie pliku PDF przez konsumenta `pdf_worker`.
+4. Poprawność pobrania pliku PDF przez endpoint REST API.
+
+---
+
+## Autorzy
+
+| Członek Zespołu | Zakres odpowiedzialności |
+|---|---|
+| **Valentyn** | Architektura bazy danych, infrastruktura Docker, RabbitMQ, bezpieczeństwo WAF |
+| **Dmitrii H.** | Logika biznesowa backendu (FastAPI), integracja brokera, transakcje |
+| **Dmytro D.** | Interfejs użytkownika (Vue 3, Tailwind), mapa pokładu, responsywność |
+
+---
+
+## Zrzuty ekranu
+
+<!-- Strona główna z wyszukiwarką lotów -->
+<img width="1919" height="1060" alt="Strona główna" src="https://github.com/user-attachments/assets/ea9f3bfb-1f27-4de8-a84d-84ef1e130311" />
+*(Wyszukiwarka lotów na stronie głównej)*
+
+<!-- Interaktywna mapa miejsc -->
+<img width="1898" height="1053" alt="Mapa miejsc" src="https://github.com/user-attachments/assets/9b926aad-0630-4121-a093-edf552fd6d0f" />
+*(Interaktywna mapa pokładu samolotu)*
+
+<!-- Finalizacja i sukces -->
+<img width="1895" height="1051" alt="Formularz płatności" src="https://github.com/user-attachments/assets/c5735c32-12a2-4043-a52a-095a20f06df7" />
+*(Formularz płatności i bezpieczeństwo transakcji)*
+
+<img width="1919" height="1045" alt="Potwierdzenie" src="https://github.com/user-attachments/assets/b0c0a5ce-f824-4f25-a057-4466729e5652" />
+*(Ekran potwierdzenia rezerwacji z opcją pobrania PDF)*
+
+<!-- E-bilet PDF -->
+<img width="785" height="493" alt="Wygenerowany bilet PDF" src="https://github.com/user-attachments/assets/7a9ad4ee-eaa4-43ee-b92f-55e5d3d33b27" />
+*(Wygenerowany bilet PDF z kolejki RabbitMQ)*
+
+<!-- Panel Administratora -->
+<img width="1915" height="1058" alt="Panel Administratora" src="https://github.com/user-attachments/assets/85ae31dd-2d79-4daf-9291-d8c771ce4eb9" />
+*(Panel Administratora w Dark Mode)*
