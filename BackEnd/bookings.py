@@ -20,6 +20,13 @@ def create_reservation(
     if not flight:
         raise HTTPException(status_code=404, detail="Lot nie znaleziony")
 
+    # Проверяем статус рейса (разрешено бронирование только для запланированных рейсов)
+    if flight.status != "Zaplanowany":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Nie można zarezerwować biletu na lot o statusie: {flight.status}"
+        )
+
     # 2. Проверяем, есть ли свободные места
     if flight.liczba_miejsc <= 0:
         raise HTTPException(status_code=400, detail="Brak wolnych miejsc na ten lot")

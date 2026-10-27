@@ -61,7 +61,16 @@ def create_ticket(
 
     # Вытягиваем данные о рейсе для передачи в микросервис
     flight = db.query(models.Flight).filter(models.Flight.id_lotu == miejsce.id_lotu).first()
-    flight_number = flight.numer_lotu if flight else "UNKNOWN"
+    if not flight:
+        raise HTTPException(status_code=404, detail="Lot nie znaleziony")
+    if flight.status != "Zaplanowany":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Nie można wystawić biletu na lot o statusie: {flight.status}"
+        )
+    if miejsce.id_lotu != rezerwacja.id_lotu:
+        raise HTTPException(status_code=400, detail="Wybrane miejsce nie należy do zarezerwowanego lotu")
+    flight_number = flight.numer_lotu
 
     # 3. Создание билета
     new_ticket = models.Bilet(

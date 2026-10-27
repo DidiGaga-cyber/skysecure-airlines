@@ -25,6 +25,15 @@ def process_payment(
     # 2. Проверяем, не оплачено ли оно уже
     if rezerwacja.status == "Opłacona":
         raise HTTPException(status_code=400, detail="Ta rezerwacja została już opłacona")
+    if rezerwacja.status == "Anulowana":
+        raise HTTPException(status_code=400, detail="Nie można opłacić anulowanej rezerwacji")
+
+    flight = db.query(models.Flight).filter(models.Flight.id_lotu == rezerwacja.id_lotu).first()
+    if flight and flight.status != "Zaplanowany":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Nie można opłacić rezerwacji na lot o statusie: {flight.status}"
+        )
 
     # 3. Мок-логика: Генерируем UUID сессии и считаем транзакцию успешной
     sesja_uuid = uuid.uuid4()

@@ -160,21 +160,24 @@
                                 </span>
                                 <span :class="[
                                     'text-xs font-black uppercase px-3 py-1 rounded-lg',
-                                    flight.status === 'Zaplanowany' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                                    flight.status === 'Zaplanowany' ? 'bg-emerald-50 text-emerald-600' :
+                                    flight.status === 'Opóźniony' ? 'bg-amber-50 text-amber-600' :
+                                    flight.status === 'Odwołany' ? 'bg-red-50 text-red-600' :
+                                    'bg-slate-100 text-slate-500'
                                 ]">{{ flight.status }}</span>
                             </div>
                         </div>
                         <div class="text-right shrink-0">
                             <p class="text-2xl font-black text-blue-600">{{ formatPrice(flight.cena) }} PLN</p>
                             <button @click="startBooking(flight.id_lotu)"
-                                    :disabled="flight.liczba_miejsc <= 0"
+                                    :disabled="flight.liczba_miejsc <= 0 || flight.status !== 'Zaplanowany'"
                                     :class="[
                                         'px-6 py-2.5 rounded-xl mt-2 font-bold transition-all text-sm',
-                                        flight.liczba_miejsc > 0
+                                        (flight.liczba_miejsc > 0 && flight.status === 'Zaplanowany')
                                             ? 'bg-slate-900 text-white hover:bg-blue-600 active:scale-95 shadow-sm'
                                             : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                     ]">
-                                {{ flight.liczba_miejsc > 0 ? 'Rezerwuj →' : 'Brak miejsc' }}
+                                {{ flight.status !== 'Zaplanowany' ? 'Niedostępny' : (flight.liczba_miejsc > 0 ? 'Rezerwuj →' : 'Brak miejsc') }}
                             </button>
                         </div>
                     </div>

@@ -73,7 +73,10 @@
                         <td class="p-4">
                             <span :class="[
                                 'text-[10px] font-black uppercase px-2.5 py-1 rounded-md border',
-                                flight.status === 'Zaplanowany' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'
+                                flight.status === 'Zaplanowany' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                flight.status === 'Opóźniony' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                flight.status === 'Odwołany' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                'bg-slate-800 text-slate-400 border-slate-700'
                             ]">
                                 {{ flight.status }}
                             </span>
@@ -113,6 +116,7 @@
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Status</label>
                         <select v-model="flightForm.status" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white outline-none focus:border-indigo-500">
                             <option value="Zaplanowany">Zaplanowany</option>
+                            <option value="Opóźniony">Opóźniony</option>
                             <option value="W trakcie">W trakcie</option>
                             <option value="Zakończony">Zakończony</option>
                             <option value="Odwołany">Odwołany</option>

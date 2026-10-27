@@ -99,8 +99,13 @@ createApp({
                 window.location.href = 'login.html';
                 return;
             }
+            const flight = flights.value.find(f => f.id_lotu === id) || null;
+            if (!flight || flight.status !== 'Zaplanowany') {
+                showToast(`Nie można zarezerwować biletu na lot o statusie: ${flight ? flight.status : 'Nieznany'}`, 'warning');
+                return;
+            }
             activeFlightId.value = id;
-            currentFlight.value  = flights.value.find(f => f.id_lotu === id) || null;
+            currentFlight.value  = flight;
             currentView.value    = 'booking';
             try {
                 const response = await axios.get(`${API_URL}/flights/${id}/seats`);

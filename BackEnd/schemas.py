@@ -109,4 +109,4 @@ class FlightUpdate(BaseModel):
     czas_przylotu: Optional[datetime] = None
     cena: Optional[Decimal] = None
     liczba_miejsc: Optional[int] = None
-    status: Optional[str] = None  # Zaplanowany | W trakcie | Zakończony | Odwołany
+    status: Optional[str] = None  # Zaplanowany | Opóźniony | W trakcie | Zakończony | Odwołany
