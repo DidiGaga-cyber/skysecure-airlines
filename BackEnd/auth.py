@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer # Добавили стандарт OAuth2
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 import models, schemas, auth_utils
 from database import get_db
 from jose import JWTError, jwt
@@ -29,8 +29,6 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # В стандарте OAuth2 поле логина всегда называется "username", 
-    # но мы передаем в него наш email.
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     
     if not user or not auth_utils.verify_password(form_data.password, user.haslo_hash):
@@ -48,7 +46,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        # Декодируем токен (в auth/login мы передавали 'sub': user.email)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:

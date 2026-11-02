@@ -13,7 +13,6 @@ def process_payment(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 1. Ищем бронирование и проверяем, принадлежит ли оно юзеру
     rezerwacja = db.query(models.Rezerwacja).filter(
         models.Rezerwacja.id_rezerwacji == payment.id_rezerwacji,
         models.Rezerwacja.id_uzytkownika == current_user.id_uzytkownika
@@ -22,7 +21,6 @@ def process_payment(
     if not rezerwacja:
         raise HTTPException(status_code=404, detail="Rezerwacja nie znaleziona")
 
-    # 2. Проверяем, не оплачено ли оно уже
     if rezerwacja.status == "Opłacona":
         raise HTTPException(status_code=400, detail="Ta rezerwacja została już opłacona")
     if rezerwacja.status == "Anulowana":
@@ -35,11 +33,10 @@ def process_payment(
             detail=f"Nie można opłacić rezerwacji na lot o statusie: {flight.status}"
         )
 
-    # 3. Мок-логика: Генерируем UUID сессии и считаем транзакцию успешной
+    # Simulated transaction success
     sesja_uuid = uuid.uuid4()
-    symulowany_status = "Success" # Для тестов ошибок можно сделать рандом, но пока хардкодим успех
+    symulowany_status = "Success"
 
-    # 4. Создаем запись в таблице Platnosci
     nowa_platnosc = models.Platnosc(
         id_rezerwacji=rezerwacja.id_rezerwacji,
         kwota=rezerwacja.kwota_laczna,
@@ -49,10 +46,8 @@ def process_payment(
     )
     db.add(nowa_platnosc)
 
-    # 5. Обновляем статус бронирования!
     rezerwacja.status = "Opłacona"
 
-    # 6. Записываем в аудит (Security)
     audit_log = models.LogAudytowy(
         id_uzytkownika=current_user.id_uzytkownika,
         akcja="PAYMENT_SUCCESS",

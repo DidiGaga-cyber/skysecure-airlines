@@ -16,8 +16,6 @@ def get_flights(
     departure_date: Optional[date] = Query(None, alias="date"),
     db: Session = Depends(get_db)
 ):
-    # Создаем базовый запрос с JOIN, чтобы видеть данные аэропортов
-    # Мы используем алиасы (aliased), если нужно разделять аэропорт вылета и прилета
     from sqlalchemy.orm import aliased
     
     AirportOrigin = aliased(models.Airport)
@@ -29,21 +27,18 @@ def get_flights(
         AirportDest, models.Flight.id_lotniska_przylotu == AirportDest.id_lotniska
     )
 
-    # Фильтр по городу или коду IATA вылета
     if origin:
         query = query.filter(
             (AirportOrigin.miasto.ilike(f"%{origin}%")) | 
             (AirportOrigin.kod_iata.ilike(f"{origin}"))
         )
     
-    # Фильтр по городу или коду IATA прилета
     if destination:
         query = query.filter(
             (AirportDest.miasto.ilike(f"%{destination}%")) | 
             (AirportDest.kod_iata.ilike(f"{destination}"))
         )
         
-    # Фильтр по дате (теперь поле называется czas_odlotu)
     if departure_date:
         query = query.filter(func.date(models.Flight.czas_odlotu) == departure_date)
 
@@ -51,35 +46,17 @@ def get_flights(
 
 @router.get("/{id_lotu}/seats", response_model=List[schemas.SeatOut])
 def get_flight_seats(id_lotu: int, db: Session = Depends(get_db)):
-    """
-    Возвращает список всех мест для конкретного рейса с их статусом (свободно/занято).
-    """
-    # 1. Проверяем, существует ли такой рейс вообще
     flight = db.query(models.Flight).filter(models.Flight.id_lotu == id_lotu).first()
     if not flight:
         raise HTTPException(status_code=404, detail="Lot nie znaleziony")
 
-    # 2. Получаем все места из таблицы Miejsca для этого рейса
-    # В моделях этот класс называется Miejsce (судя по твоему файлу tickets.py)
     seats = db.query(models.Miejsce).filter(models.Miejsce.id_lotu == id_lotu).order_by(models.Miejsce.id_miejsca).all()
-    
-    # 3. Если мест в базе нет (например, рейс создан, но скрипт генерации мест не запущен)
     if not seats:
         return []
 
     return seats
 
-
-
-# ---------------------------------------------------------------------------
-# Helper: generate seats for a flight
-# ---------------------------------------------------------------------------
-
 def generate_seats(flight_id: int, liczba_miejsc: int, db: Session) -> None:
-    """
-    Automatycznie generuje miejsca dla lotu wedlug liczby_miejsc.
-    Rzedy 1-2 to Business (A-F), reszta to Economy.
-    """
     COLUMNS = ["A", "B", "C", "D", "E", "F"]
     seats_per_row = len(COLUMNS)
     total_rows = -(-liczba_miejsc // seats_per_row)  # ceiling division
@@ -104,12 +81,7 @@ def generate_seats(flight_id: int, liczba_miejsc: int, db: Session) -> None:
 
     db.bulk_save_objects(seats_to_insert)
 
-# ---------------------------------------------------------------------------
-# Helper: enforce Admin role
-# ---------------------------------------------------------------------------
-
 def require_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
-    """Raises 403 if the authenticated user is not an Admin."""
     if current_user.rola != "Admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -117,46 +89,32 @@ def require_admin(current_user: models.User = Depends(get_current_user)) -> mode
         )
     return current_user
 
-
-# ---------------------------------------------------------------------------
-# ADMIN-ONLY endpoints
-# ---------------------------------------------------------------------------
-
 @router.post("/", response_model=schemas.FlightOut, status_code=status.HTTP_201_CREATED)
 def create_flight(
     flight_data: schemas.FlightCreate,
     db: Session = Depends(get_db),
     _admin: models.User = Depends(require_admin),
 ):
-    """
-    [ADMIN] Dodaj nowy lot.
-    Wymaga tokena JWT z rolą Admin.
-    """
-    # Validate airports exist
     if not db.query(models.Airport).filter(models.Airport.id_lotniska == flight_data.id_lotniska_odlotu).first():
         raise HTTPException(status_code=404, detail=f"Lotnisko odlotu (id={flight_data.id_lotniska_odlotu}) nie istnieje.")
     if not db.query(models.Airport).filter(models.Airport.id_lotniska == flight_data.id_lotniska_przylotu).first():
         raise HTTPException(status_code=404, detail=f"Lotnisko przylotu (id={flight_data.id_lotniska_przylotu}) nie istnieje.")
 
-    # Validate flight times
     if flight_data.czas_przylotu <= flight_data.czas_odlotu:
         raise HTTPException(status_code=400, detail="Czas przylotu musi być późniejszy niż czas odlotu.")
 
-    # Ensure unique flight number
     if db.query(models.Flight).filter(models.Flight.numer_lotu == flight_data.numer_lotu).first():
         raise HTTPException(status_code=409, detail=f"Lot o numerze '{flight_data.numer_lotu}' już istnieje.")
 
     new_flight = models.Flight(**flight_data.model_dump())
     db.add(new_flight)
-    db.flush()  # get new_flight.id_lotu without full commit
+    db.flush()
 
-    # Generate seats based on liczba_miejsc
     generate_seats(new_flight.id_lotu, flight_data.liczba_miejsc, db)
 
     db.commit()
     db.refresh(new_flight)
     return new_flight
-
 
 @router.put("/{id_lotu}", response_model=schemas.FlightOut)
 def update_flight(
@@ -165,10 +123,6 @@ def update_flight(
     db: Session = Depends(get_db),
     _admin: models.User = Depends(require_admin),
 ):
-    """
-    [ADMIN] Zaktualizuj dane lotu (częściowa aktualizacja).
-    Wymaga tokena JWT z rolą Admin.
-    """
     flight = db.query(models.Flight).filter(models.Flight.id_lotu == id_lotu).first()
     if not flight:
         raise HTTPException(status_code=404, detail="Lot nie znaleziony.")
@@ -182,13 +136,11 @@ def update_flight(
         if not db.query(models.Airport).filter(models.Airport.id_lotniska == update_dict["id_lotniska_przylotu"]).first():
             raise HTTPException(status_code=404, detail="Nowe lotnisko przylotu nie istnieje.")
 
-    # Validate time consistency after update
     new_odlot = update_dict.get("czas_odlotu", flight.czas_odlotu)
     new_przylot = update_dict.get("czas_przylotu", flight.czas_przylotu)
     if new_przylot <= new_odlot:
         raise HTTPException(status_code=400, detail="Czas przylotu musi być późniejszy niż czas odlotu.")
 
-    # If liczba_miejsc changed — delete all FREE seats and regenerate
     if "liczba_miejsc" in update_dict:
         new_count = update_dict["liczba_miejsc"]
         occupied = db.query(models.Miejsce).filter(
@@ -200,13 +152,11 @@ def update_flight(
                 status_code=409,
                 detail=f"Nie można zmniejszyć liczby miejsc poniżej {occupied} (zajętych)."
             )
-        # Delete all free seats — occupied stay (ON DELETE RESTRICT protects them)
         db.query(models.Miejsce).filter(
             models.Miejsce.id_lotu == id_lotu,
             models.Miejsce.czy_wolne == True
         ).delete(synchronize_session=False)
         db.flush()
-        # Regenerate all seats from scratch if no occupied seats, else just add
         remaining = db.query(models.Miejsce).filter(models.Miejsce.id_lotu == id_lotu).count()
         seats_to_add = new_count - remaining
         if seats_to_add > 0:
@@ -219,18 +169,12 @@ def update_flight(
     db.refresh(flight)
     return flight
 
-
 @router.delete("/{id_lotu}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_flight(
     id_lotu: int,
     db: Session = Depends(get_db),
     _admin: models.User = Depends(require_admin),
 ):
-    """
-    [ADMIN] Usuń lot.
-    Uwaga: CASCADE w bazie usunie powiązane miejsca i rezerwacje.
-    Wymaga tokena JWT z rolą Admin.
-    """
     flight = db.query(models.Flight).filter(models.Flight.id_lotu == id_lotu).first()
     if not flight:
         raise HTTPException(status_code=404, detail="Lot nie znaleziony.")
@@ -244,16 +188,8 @@ def delete_flight(
     db.delete(flight)
     db.commit()
 
-# ---------------------------------------------------------------------------
-# Airport lookup endpoint
-# ---------------------------------------------------------------------------
- 
 @router.get("/airports/{id_lotniska}", tags=["airports"])
 def get_airport(id_lotniska: int, db: Session = Depends(get_db)):
-    """
-    Zwraca dane lotniska po jego ID.
-    Dostępne dla wszystkich użytkowników (bez tokena).
-    """
     airport = db.query(models.Airport).filter(models.Airport.id_lotniska == id_lotniska).first()
     if not airport:
         raise HTTPException(status_code=404, detail=f"Lotnisko o ID={id_lotniska} nie istnieje.")
@@ -264,4 +200,3 @@ def get_airport(id_lotniska: int, db: Session = Depends(get_db)):
         "miasto":      airport.miasto,
         "kraj":        airport.kraj,
     }
- 

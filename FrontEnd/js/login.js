@@ -14,7 +14,6 @@ createApp({
 
         const handleAuth = async () => {
             if (isRegisterMode.value) {
-                // ── REJESTRACJA ──────────────────────────────────────────────
                 try {
                     const payload = {
                         email:    form.value.email,
@@ -34,7 +33,6 @@ createApp({
                 }
 
             } else {
-                // ── LOGOWANIE ────────────────────────────────────────────────
                 try {
                     const p = new URLSearchParams();
                     p.append('username', form.value.email);
@@ -42,7 +40,6 @@ createApp({
 
                     const r = await axios.post(`${API_URL}/auth/login`, p);
 
-                    // Zapisujemy token i email
                     setSession(r.data.access_token, form.value.email);
                     localStorage.setItem('isLoggedIn', 'true');
                     localStorage.setItem('userEmail',  form.value.email);
@@ -52,8 +49,7 @@ createApp({
                         localStorage.setItem('userSurname', form.value.nazwisko || '');
                     }
 
-                    // ── SPRAWDZAMY ROLĘ Z TOKENA ─────────────────────────────
-                    // JWT payload (środkowa część) to zwykły base64 — dekodujemy bez bibliotek
+                    // Decode role from JWT payload
                     const payload = JSON.parse(atob(r.data.access_token.split('.')[1]));
                     const role = payload.role;
 

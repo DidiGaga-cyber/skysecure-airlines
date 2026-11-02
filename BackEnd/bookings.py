@@ -12,7 +12,7 @@ def create_reservation(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 1. Проверяем рейс и БЛОКИРУЕМ строку для других транзакций (Concurrency Control)
+    # Lock flight row to prevent race conditions during booking
     flight = db.query(models.Flight).filter(
         models.Flight.id_lotu == reservation.id_lotu
     ).with_for_update().first() 
@@ -20,29 +20,24 @@ def create_reservation(
     if not flight:
         raise HTTPException(status_code=404, detail="Lot nie znaleziony")
 
-    # Проверяем статус рейса (разрешено бронирование только для запланированных рейсов)
     if flight.status != "Zaplanowany":
         raise HTTPException(
             status_code=400,
             detail=f"Nie można zarezerwować biletu na lot o statusie: {flight.status}"
         )
 
-    # 2. Проверяем, есть ли свободные места
     if flight.liczba_miejsc <= 0:
         raise HTTPException(status_code=400, detail="Brak wolnych miejsc na ten lot")
 
-    # 3. Создаем бронирование с указанием суммы (kwota_laczna)
     new_reservation = models.Rezerwacja(
         id_uzytkownika=current_user.id_uzytkownika,
         id_lotu=reservation.id_lotu,
-        kwota_laczna=flight.cena  # Берем базовую цену из рейса
+        kwota_laczna=flight.cena
     )
     db.add(new_reservation)
     
-    # 4. Уменьшаем количество доступных мест 
     flight.liczba_miejsc -= 1
 
-    # 5. Добавляем лог аудита
     audit_log = models.LogAudytowy(
         id_uzytkownika=current_user.id_uzytkownika,
         akcja="RESERVATION_CREATED",
@@ -50,7 +45,6 @@ def create_reservation(
     )
     db.add(audit_log)
 
-    # 6. Фиксируем транзакцию (снимаем блокировку строки)
     db.commit()
     db.refresh(new_reservation)
 

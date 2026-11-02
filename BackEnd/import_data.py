@@ -6,7 +6,6 @@ from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-# 1. Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -14,13 +13,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("CSV_Importer")
 
-# 2. Подключение к БД (по умолчанию порт 5433 для локального запуска, 5432 для Docker)
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
     "postgresql://skysecure_user:skysecure_password@localhost:5433/skysecure_db"
 )
 
-# Словарь известных международных аэропортов (fallback)
+# Known airport metadata fallback
 KNOWN_AIRPORTS = {
     'ADD': ('Bole International Airport', 'Addis Ababa', 'Ethiopia'),
     'AKL': ('Auckland Airport', 'Auckland', 'New Zealand'),
@@ -70,17 +68,14 @@ KNOWN_AIRPORTS = {
 def get_engine():
     try:
         engine = create_engine(DATABASE_URL)
-        logger.info(f"Подключение к БД успешно: {engine.url.host}:{engine.url.port}/{engine.url.database}")
         return engine
     except Exception as e:
-        logger.error(f"Не удалось создать подключение к БД: {e}")
+        logger.error(f"Failed to connect to database: {e}")
         sys.exit(1)
 
 def import_lotniska(engine, csv_path="lotniska.csv"):
-    logger.info(f"--- Чтение и импорт аэропортов: {csv_path} ---")
     try:
         df = pd.read_csv(csv_path)
-        # Заполнение пропущенных значений в текстовых полях
         df['miasto'] = df['miasto'].fillna('Nieokreślone')
         df['kraj'] = df['kraj'].fillna('Nieokreślone')
         
@@ -103,13 +98,12 @@ def import_lotniska(engine, csv_path="lotniska.csv"):
                 })
                 if res.rowcount > 0:
                     inserted_count += 1
-        logger.info(f"Импортировано/обновлено аэропортов: {inserted_count}")
+        logger.info(f"Imported/updated airports: {inserted_count}")
     except Exception as e:
-        logger.error(f"Ошибка при импорте аэропортов: {e}")
+        logger.error(f"Error importing airports: {e}")
         raise
 
 def import_uzytkownicy(engine, csv_path="uzytkownicy.csv"):
-    logger.info(f"--- Чтение и импорт пользователей: {csv_path} ---")
     try:
         df = pd.read_csv(csv_path)
         inserted_count = 0
@@ -129,19 +123,18 @@ def import_uzytkownicy(engine, csv_path="uzytkownicy.csv"):
                 })
                 if res.rowcount > 0:
                     inserted_count += 1
-        logger.info(f"Импортировано новых пользователей: {inserted_count}")
+        logger.info(f"Imported users: {inserted_count}")
     except Exception as e:
-        logger.error(f"Ошибка при импорте пользователей: {e}")
+        logger.error(f"Error importing users: {e}")
         raise
 
 def ensure_airport_exists(conn, kod_iata):
-    """ Проверяет наличие аэропорта по IATA-коду. Если отсутствует — создаёт с известными данными или заглушкой. """
+    """Ensures airport exists by IATA code, creating or updating missing metadata."""
     kod_iata = str(kod_iata).strip().upper()[:3]
     check_query = text("SELECT id_lotniska, miasto FROM lotniska WHERE kod_iata = :kod")
     res = conn.execute(check_query, {"kod": kod_iata}).fetchone()
     
     if res:
-        # Если аэропорт был создан как Unknown, но у нас есть данные в KNOWN_AIRPORTS, обновляем его
         if res[1] in ("Unknown", "Nieokreślone", "") and kod_iata in KNOWN_AIRPORTS:
             nazwa, miasto, kraj = KNOWN_AIRPORTS[kod_iata]
             conn.execute(text("""
@@ -169,11 +162,9 @@ def ensure_airport_exists(conn, kod_iata):
     return res[0]
 
 def import_loty(engine, csv_path="loty.csv"):
-    logger.info(f"--- Чтение и импорт рейсов: {csv_path} ---")
     try:
         df = pd.read_csv(csv_path)
         
-        # Конвертация дат в формат Timestamp
         df['departure_time_dt'] = pd.to_datetime(df['departure_time'], errors='coerce')
         df['arrival_time_dt'] = pd.to_datetime(df['arrival_time'], errors='coerce')
         
@@ -181,10 +172,9 @@ def import_loty(engine, csv_path="loty.csv"):
         with engine.begin() as conn:
             for _, row in df.iterrows():
                 if pd.isna(row['departure_time_dt']) or pd.isna(row['arrival_time_dt']):
-                    logger.warning(f"Пропуск рейса {row.get('flight_number')}: некорректная дата")
+                    logger.warning(f"Skipping flight {row.get('flight_number')}: invalid date")
                     continue
                 
-                # Получение ID аэропортов вылета и прилета
                 id_dep = ensure_airport_exists(conn, row['departure_airport_code'])
                 id_arr = ensure_airport_exists(conn, row['arrival_airport_code'])
                 
@@ -217,23 +207,22 @@ def import_loty(engine, csv_path="loty.csv"):
                 if res.rowcount > 0:
                     inserted_count += 1
                     
-        logger.info(f"Импортировано новых рейсов: {inserted_count}")
+        logger.info(f"Imported flights: {inserted_count}")
     except Exception as e:
-        logger.error(f"Ошибка при импорте рейсов: {e}")
+        logger.error(f"Error importing flights: {e}")
         raise
 
 def main():
-    logger.info("=== Старт импорта CSV-данных ===")
+    logger.info("Starting CSV data import")
     engine = get_engine()
     
     try:
-        # Порядок импорта важен из-за связей Foreign Key!
         import_lotniska(engine, "lotniska.csv")
         import_uzytkownicy(engine, "uzytkownicy.csv")
         import_loty(engine, "loty.csv")
-        logger.info("=== Импорт успешно завершён ===")
+        logger.info("Import completed successfully")
     except Exception as e:
-        logger.critical(f"Критическая ошибка процесса импорта: {e}")
+        logger.critical(f"Critical error during import: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

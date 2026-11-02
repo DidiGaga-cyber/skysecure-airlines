@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, text, Numeric, ForeignKey, Boolean, LargeBinary
+from sqlalchemy import Column, Integer, String, TIMESTAMP, text, Numeric, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from database import Base
@@ -12,9 +12,7 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=False, index=True)
     haslo_hash = Column(String(255), nullable=False)
     rola = Column(String(20), server_default="User")
-##    data_rejestracji = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
 
-    # Relacje
     rezerwacje = relationship("Rezerwacja", back_populates="uzytkownik", cascade="all, delete")
     logi = relationship("LogAudytowy", back_populates="uzytkownik")
 
@@ -43,7 +41,6 @@ class Flight(Base):
     liczba_miejsc = Column(Integer, nullable=False)
     status = Column(String(20), server_default="Zaplanowany")
 
-    # Relacje
     lotnisko_odlotu = relationship("Airport", foreign_keys=[id_lotniska_odlotu], back_populates="loty_odloty")
     lotnisko_przylotu = relationship("Airport", foreign_keys=[id_lotniska_przylotu], back_populates="loty_przyloty")
     miejsca = relationship("Miejsce", back_populates="lot", cascade="all, delete")
@@ -84,7 +81,6 @@ class Bilet(Base):
     id_miejsca = Column(Integer, ForeignKey("miejsca.id_miejsca", ondelete="RESTRICT"), unique=True, nullable=False)
     imie_pasazera = Column(String(50), nullable=False)
     nazwisko_pasazera = Column(String(50), nullable=False)
-    #dane_paszportowe = Column(LargeBinary) --- Убрано, так как паспортные данные больше не требуются для бронирования
 
     rezerwacja = relationship("Rezerwacja", back_populates="bilety")
     miejsce = relationship("Miejsce", back_populates="bilet")

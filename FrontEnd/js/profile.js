@@ -1,7 +1,6 @@
 import { getAuthToken, isTokenExpired, clearSession, setupAxiosInterceptors, API_URL } from './state.js';
 import { showToast } from './notify.js';
 
-// Interceptor działa globalnie — obsługuje wygaśnięcie sesji dla fetch i axios
 setupAxiosInterceptors();
 
 const { createApp } = Vue;
@@ -25,7 +24,6 @@ createApp({
         }
     },
     mounted() {
-        // Sprawdzamy token: czy istnieje i czy nie wygasł
         const token = getAuthToken();
         if (!token || isTokenExpired()) {
             clearSession();
@@ -88,7 +86,6 @@ createApp({
                 return;
             }
 
-            // Sprawdzamy token przed fetch (fetch nie przechodzi przez axios interceptor)
             const token = getAuthToken();
             if (!token || isTokenExpired()) {
                 clearSession();
@@ -105,7 +102,6 @@ createApp({
                 });
 
                 if (res.status === 401) {
-                    // Token odrzucony przez serwer
                     clearSession();
                     showToast('Sesja wygasła. Zaloguj się ponownie.', 'warning', 4000);
                     setTimeout(() => { window.location.href = 'login.html'; }, 1500);

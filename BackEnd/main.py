@@ -8,21 +8,15 @@ from bookings import router as bookings_router
 from tickets import router as tickets_router
 from payments import router as payments_router
 
-# Сначала БД
 models.Base.metadata.create_all(bind=engine)
 
-# Создаем приложение (root_path нужен, чтобы Swagger не терялся за Nginx)
 app = FastAPI(title="SkySecure Airlines API", root_path="/api")
 
-# -------------------------------------------------------
-# CORS — разрешаем только наш фронтенд (не "*")
-# При деплое замените localhost на реальный домен
-# -------------------------------------------------------
 origins = [
     "https://localhost",
     "https://127.0.0.1",
-    "http://localhost",       #  для dev-режима
-    "http://127.0.0.1",       #  для dev-режима
+    "http://localhost",
+    "http://127.0.0.1",
 ]
 
 app.add_middleware(
@@ -33,7 +27,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# Подключаем роутеры
 app.include_router(auth_router)
 
 api_router = APIRouter()

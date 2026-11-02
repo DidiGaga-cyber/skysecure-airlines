@@ -28,10 +28,10 @@ class FlightOut(BaseModel):
     numer_lotu: str
     id_lotniska_odlotu: int
     id_lotniska_przylotu: int
-    czas_odlotu: datetime # Было data_wylotu
+    czas_odlotu: datetime
     czas_przylotu: datetime 
     cena: float
-    liczba_miejsc: int # Было wolne_miejsca
+    liczba_miejsc: int
     status: str
 
     class Config:
@@ -40,8 +40,6 @@ class FlightOut(BaseModel):
 class ReservationCreate(BaseModel):
     id_lotu: int
 
-
-## changed data_rezerwacji: datetime into data_utworzenia: datetime
 class ReservationOut(BaseModel):
     id_rezerwacji: int
     id_uzytkownika: int
@@ -57,8 +55,6 @@ class TicketCreate(BaseModel):
     id_miejsca: int
     imie: str
     nazwisko: str
-    ## paszport: str # Убрано, так как паспортные данные больше не требуются для бронирования
-
 
 class SeatOut(BaseModel):
     id_miejsca: int
@@ -72,7 +68,7 @@ class SeatOut(BaseModel):
 
 class PaymentCreate(BaseModel):
     id_rezerwacji: int
-    metoda: str  # например: "BLIK", "Karta", "ApplePay"
+    metoda: str
 
 class PaymentOut(BaseModel):
     id_platnosci: int
@@ -86,7 +82,6 @@ class PaymentOut(BaseModel):
         from_attributes = True
 
 class FlightCreate(BaseModel):
-    """Schema używana przez Admina do tworzenia nowego lotu."""
     numer_lotu: str
     id_lotniska_odlotu: int
     id_lotniska_przylotu: int
@@ -96,12 +91,7 @@ class FlightCreate(BaseModel):
     liczba_miejsc: int
     status: Optional[str] = "Zaplanowany"
 
-
 class FlightUpdate(BaseModel):
-    """
-    Schema do częściowej aktualizacji lotu (Admin only).
-    Wszystkie pola są opcjonalne — przesyłaj tylko te, które chcesz zmienić.
-    """
     numer_lotu: Optional[str] = None
     id_lotniska_odlotu: Optional[int] = None
     id_lotniska_przylotu: Optional[int] = None
@@ -109,4 +99,4 @@ class FlightUpdate(BaseModel):
     czas_przylotu: Optional[datetime] = None
     cena: Optional[Decimal] = None
     liczba_miejsc: Optional[int] = None
-    status: Optional[str] = None  # Zaplanowany | Opóźniony | W trakcie | Zakończony | Odwołany
+    status: Optional[str] = None

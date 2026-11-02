@@ -1,11 +1,8 @@
 import { API_URL, getAuthToken, getUserRole, clearSession, setupAxiosInterceptors } from './state.js';
 import { showToast, showConfirm } from './notify.js';
 
-
 const { createApp, ref, onMounted } = Vue;
 
-// Globalny interceptor JWT — obsługuje wygaśnięcie sesji i dodaje token do requestów.
-// Zastępuje poprzedni ręczny interceptor. Zdefiniowany raz tutaj, działa dla wszystkich stron.
 setupAxiosInterceptors();
 
 createApp({
@@ -13,7 +10,6 @@ createApp({
         const flights = ref([]);
         const isLoading = ref(false);
 
-        // --- ZARZĄDZANIE FORMULARZEM ---
         const showModal = ref(false);
         const isEditing = ref(false);
         const currentFlightId = ref(null);
@@ -46,7 +42,6 @@ createApp({
                 const response = await axios.get(`${API_URL}/flights/`);
                 flights.value = response.data;
             } catch (error) {
-                // Błąd 401 jest już obsługiwany przez interceptor w state.js — nie duplikujemy logiki
                 if (!axios.isCancel(error)) {
                     console.error("Błąd pobierania lotów:", error);
                 }
@@ -97,13 +92,12 @@ createApp({
                 showModal.value = false;
                 loadFlights();
             } catch (error) {
-                if (axios.isCancel(error)) return; // wygaśnięcie tokenu — interceptor już obsłużył
+                if (axios.isCancel(error)) return;
                 if (error.response?.status === 403) {
                     showToast("Brak uprawnień. Zaloguj się jako Admin.");
                 } else if (error.response?.status === 409 || error.response?.status === 404 || error.response?.status === 400) {
                     showToast("Błąd: " + error.response.data.detail);
                 } else if (error.response?.status !== 401) {
-                    // 401 obsługuje interceptor, resztę obsługujemy tu
                     showToast("Wystąpił błąd podczas zapisywania lotu.");
                 }
             }

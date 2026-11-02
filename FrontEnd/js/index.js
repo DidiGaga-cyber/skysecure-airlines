@@ -2,7 +2,6 @@ import { API_URL, getAuthToken, getUserEmail, clearSession } from './state.js';
 import { showToast } from './notify.js';
 const { createApp, ref, reactive, computed } = Vue;
 
-// ── AXIOS INTERCEPTOR ────────────────────────────────────────────────────────
 axios.interceptors.request.use(config => {
     const token = getAuthToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -11,21 +10,17 @@ axios.interceptors.request.use(config => {
 
 createApp({
     setup() {
-        // ── AUTH ─────────────────────────────────────────────────────────────
         const isLoggedIn = ref(!!getAuthToken());
         const userEmail  = ref(getUserEmail());
         const logout = () => { clearSession(); window.location.reload(); };
 
-        // ── WIDOK: 'search' | 'booking' | 'payment' | 'success' ─────────────
         const currentView = ref('search');
 
-        // ── WYSZUKIWANIE ─────────────────────────────────────────────────────
         const searchForm  = reactive({ from: '', to: '', date: '' });
         const flights     = ref([]);
         const hasSearched = ref(false);
         const isLoading   = ref(false);
 
-        // Кэш аэропортов: { [id]: объект аэропорта }
         const airportCache = {};
         const fetchAirport = async (id) => {
             if (!id) return null;
@@ -48,11 +43,9 @@ createApp({
                 const response = await axios.get(`${API_URL}/flights/`, { params });
                 const rawFlights = response.data;
 
-                // Загружаем все уникальные аэропорты параллельно
                 const uniqueIds = [...new Set(rawFlights.flatMap(f => [f.id_lotniska_odlotu, f.id_lotniska_przylotu]).filter(Boolean))];
                 await Promise.all(uniqueIds.map(fetchAirport));
 
-                // Обогащаем каждый рейс данными аэропортов
                 flights.value = rawFlights.map(f => ({
                     ...f,
                     lotnisko_skad:  airportCache[f.id_lotniska_odlotu]  || null,
@@ -65,7 +58,6 @@ createApp({
             }
         };
 
-        // ── REZERWACJA ───────────────────────────────────────────────────────
         const activeFlightId    = ref(null);
         const currentFlight     = ref(null);
         const selectedSeat      = ref(null);
@@ -74,7 +66,6 @@ createApp({
         const isBookingLoading  = ref(false);
         const hoverSeat         = ref(null);
 
-        // Grupowanie miejsc według numerów rzędów
         const groupedSeats = computed(() => {
             const groups = {};
             seats.value.forEach(seat => {
@@ -115,10 +106,7 @@ createApp({
             }
         };
 
-        // Dane rezerwacji przekazywane do ekranu płatności
         const reservationData = reactive({ id_rezerwacji: null, kwota: 0 });
-
-        // ID biletu zwracane przez POST /tickets/ – potrzebne do pobrania PDF
         const ticketId = ref(null);
 
         const submitBooking = async () => {
@@ -134,13 +122,11 @@ createApp({
             }
             isBookingLoading.value = true;
             try {
-                // Krok 1: Utwórz rezerwację
                 const resBooking = await axios.post(`${API_URL}/bookings/`, {
                     id_lotu: activeFlightId.value
                 });
                 const id_rezerwacji = resBooking.data.id_rezerwacji;
 
-                // Krok 2: Utwórz bilet – zapisz id_bileta do stanu
                 const resTicket = await axios.post(`${API_URL}/tickets/`, {
                     id_rezerwacji,
                     id_miejsca: selectedSeat.value.id_miejsca,
@@ -149,7 +135,6 @@ createApp({
                 });
                 ticketId.value = resTicket.data.id_bileta ?? null;
 
-                // Przejście do ekranu płatności
                 reservationData.id_rezerwacji = id_rezerwacji;
                 reservationData.kwota         = parseFloat(currentFlight.value?.cena || 0);
                 currentView.value = 'payment';
@@ -165,7 +150,6 @@ createApp({
             }
         };
 
-        // ── PŁATNOŚĆ ─────────────────────────────────────────────────────────
         const paymentMethod    = ref('Karta');
         const cardDetails      = reactive({ number: '', expiry: '', cvc: '', name: '' });
         const blikCode         = ref('');
@@ -174,7 +158,6 @@ createApp({
             id_platnosci: null, identyfikator_sesji: null, kwota: 0, metoda: ''
         });
 
-        // Auto-formatowanie numeru karty: "4111 1111 1111 1111"
         const onCardNumberInput = (e) => {
             let raw = e.target.value.replace(/\D/g, '').slice(0, 16);
             cardDetails.number = raw.replace(/(.{4})/g, '$1 ').trim();
@@ -209,7 +192,6 @@ createApp({
                 successData.kwota              = res.data.kwota;
                 successData.metoda             = res.data.metoda;
 
-                // Zapisz do localStorage → profil
                 _saveBookingToStorage(res.data);
                 currentView.value = 'success';
             } catch (error) {
@@ -244,7 +226,6 @@ createApp({
             localStorage.setItem('myBookings', JSON.stringify(existing));
         };
 
-        // ── POBIERANIE PDF BILETU ─────────────────────────────────────────────
         const isPdfLoading  = ref(false);
         const pdfError      = ref('');
 
@@ -287,7 +268,6 @@ createApp({
             }
         };
 
-
         const resetView = () => {
             currentView.value         = 'search';
             activeFlightId.value      = null;
@@ -309,7 +289,6 @@ createApp({
             pdfError.value            = '';
         };
 
-        // ── STYLE MIEJSC (inline, niezależne od Tailwind) ────────────────────
         const selectSeat = (seat) => { if (seat.czy_wolne) selectedSeat.value = seat; };
 
         const getSeatStyle = (seat) => {
@@ -344,7 +323,6 @@ createApp({
             };
         };
 
-        // ── FORMATOWANIE ─────────────────────────────────────────────────────
         const formatTime  = (d) => new Date(d).toLocaleString('pl-PL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
         const formatPrice = (p) => parseFloat(p).toLocaleString('pl-PL', { minimumFractionDigits: 2 });
         const formatDate  = (d) => d ? new Date(d).toLocaleDateString('pl-PL') : '—';
