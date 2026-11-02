@@ -61,7 +61,12 @@ export const setupAxiosInterceptors = (onExpired) => {
                     handleExpired();
                     return Promise.reject(new axios.Cancel('Token expired'));
                 }
-                config.headers.Authorization = `Bearer ${token}`;
+                if (config.headers && typeof config.headers.set === 'function') {
+                    config.headers.set('Authorization', `Bearer ${token}`);
+                } else {
+                    config.headers = config.headers || {};
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
             }
             return config;
         },

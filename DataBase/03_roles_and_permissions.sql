@@ -30,6 +30,8 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user_role;
 GRANT app_user_role TO app_admin_role;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO app_admin_role;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO app_admin_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO app_admin_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO app_admin_role;
 
 -- 4. Permissions for app_readonly_role
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_readonly_role;

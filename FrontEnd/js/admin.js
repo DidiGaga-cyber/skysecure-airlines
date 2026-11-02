@@ -94,7 +94,7 @@ createApp({
             } catch (error) {
                 if (axios.isCancel(error)) return;
                 if (error.response?.status === 403) {
-                    showToast("Brak uprawnień. Zaloguj się jako Admin.");
+                    showToast(error.response?.data?.detail || "Brak uprawnień. Zaloguj się jako Admin.");
                 } else if (error.response?.status === 409 || error.response?.status === 404 || error.response?.status === 400) {
                     showToast("Błąd: " + error.response.data.detail);
                 } else if (error.response?.status !== 401) {
@@ -116,7 +116,7 @@ createApp({
             } catch (error) {
                 if (axios.isCancel(error)) return;
                 if (error.response?.status === 403) {
-                    showToast("Błąd: Brak uprawnień! Tylko konto z rolą Admin może usuwać loty.");
+                    showToast(error.response?.data?.detail || "Błąd: Brak uprawnień! Wymagana rola: Admin.");
                 } else if (error.response?.status === 409) {
                     showToast("Błąd: " + error.response.data.detail);
                 } else if (error.response?.status !== 401) {
