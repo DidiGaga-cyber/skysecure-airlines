@@ -6,5 +6,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY pdf_worker.py .
 
-# Запуск с флагом -u для мгновенного вывода логов в консоль Docker
+# Unbuffered stdout for immediate Docker log output
 CMD ["python", "-u", "pdf_worker.py"]
